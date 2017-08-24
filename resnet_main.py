@@ -283,6 +283,16 @@ def evaluate(hps):
                 tag='top_8', simple_value=top_8)
             summary_writer.add_summary(top_8_summ, train_step)
 
+            top_12_summ = tf.Summary()
+            top_12_summ.value.add(
+                tag='top_12', simple_value=top_12)
+            summary_writer.add_summary(top_12_summ, train_step)
+
+            top_16_summ = tf.Summary()
+            top_16_summ.value.add(
+                tag='top_16', simple_value=top_16)
+            summary_writer.add_summary(top_16_summ, train_step)
+
             precision_summ = tf.Summary()
             precision_summ.value.add(
                 tag='Precision', simple_value=precision)
