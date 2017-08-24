@@ -29,7 +29,7 @@ import six
 from tensorflow.python.training import moving_averages
 
 HParams = namedtuple('HParams',
-                     'batch_size, num_classes, min_lrn_rate, lrn_rate, '
+                     'dataset_name, batch_size, num_classes, min_lrn_rate, lrn_rate, '
                      'num_residual_units, use_bottleneck, weight_decay_rate, '
                      'relu_leakiness, optimizer')
 
@@ -69,7 +69,10 @@ class ResNet(object):
         """Build the core model within the graph."""
         with tf.variable_scope('init'):
             x = self._images
-            x = self._conv('init_conv', x, 3, 3, 16, self._stride_arr(1))
+            if self.hps.dataset_name == 'fdc':
+                x = self._conv('init_conv', x, 3, 1, 16, self._stride_arr(1))
+            else:
+                x = self._conv('init_conv', x, 3, 3, 16, self._stride_arr(1))
 
         strides = [1, 2, 2]
         activate_before_residual = [True, False, False]

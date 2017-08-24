@@ -25,7 +25,7 @@ import resnet_model
 import tensorflow as tf
 
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('dataset', 'cifar10', 'cifar10 or cifar100.')
+tf.app.flags.DEFINE_string('dataset', 'cifar10', 'cifar10, cifar100 ro fdc')
 tf.app.flags.DEFINE_string('mode', 'train', 'train or eval.')
 tf.app.flags.DEFINE_string('train_data_path', '',
                            'Filepattern for training data.')
@@ -36,7 +36,7 @@ tf.app.flags.DEFINE_string('train_dir', '',
                            'Directory to keep training outputs.')
 tf.app.flags.DEFINE_string('eval_dir', '',
                            'Directory to keep eval outputs.')
-tf.app.flags.DEFINE_integer('eval_batch_count', 50,
+tf.app.flags.DEFINE_integer('eval_batch_count', 207,
                             'Number of batches to eval.')
 tf.app.flags.DEFINE_bool('eval_once', False,
                          'Whether evaluate the model only once.')
@@ -166,8 +166,10 @@ def evaluate(hps):
             total_top_5, total_prediction, correct_prediction = 0, 0, 0
             correct_top_5_prediction = 0
             correct_top_5_prediction_total = 0
+            correct_top_8_prediction = 0
+            correct_top_8_prediction_total = 0
             start = time.time()
-            x10_angularx10_angularx = np.zeros((10, 10))
+            # x_angularx10_angularx = np.zeros((10, 10))
             for _ in six.moves.range(FLAGS.eval_batch_count):
                 (summaries, loss, predictions, truth, train_step) = sess.run(
                     [model.summaries, model.cost, model.predictions,
@@ -207,6 +209,7 @@ def evaluate(hps):
                     col = predictions[idx]
 
                     for_top_5 = col.argsort()[-5:][::-1]
+                    for_top_8 = col.argsort()[-8:][::-1]
                     # print(row)
                     # print(for_top_5)
                     # print(row in for_top_5)
@@ -214,11 +217,15 @@ def evaluate(hps):
                         correct_top_5_prediction += 1
                     correct_top_5_prediction_total += 1
 
+                    if row in for_top_8:
+                        correct_top_8_prediction += 1
+                    correct_top_8_prediction_total += 1
+
                 predictions = np.argmax(predictions, axis=1)
-                for idx in range(hps.batch_size):
-                    row = truth[idx]
-                    col = predictions[idx]
-                    x10_angularx10_angularx[row, col] += 1
+                # for idx in range(hps.batch_size):
+                #     row = truth[idx]
+                #     col = predictions[idx]
+                    # x10_angularx10_angularx[row, col] += 1
                     # print('index:  ' + str(idx) + '     correct_label: ' + str(row) + '     prediction: ' + str(col) +
                     #       '     x10_angularx10_angularx[' + str(row) + ', ' + str(col) + '] = ' + str(x10_angularx10_angularx[row, col]))
 
@@ -228,7 +235,9 @@ def evaluate(hps):
                 total_prediction += predictions.shape[0]
                 # total_top_5 += top_5
 
+            # *********************************
             # confusion matrix #################
+            # *********************************
             # for row in range(10):
             #     print('---------------')
             #     print('mode : ' + str(row))
@@ -246,11 +255,17 @@ def evaluate(hps):
             best_precision = max(precision, best_precision)
             # avg_top_5 = total_top_5 / FLAGS.eval_batch_count
             top_5 = 1.0 * correct_top_5_prediction / correct_top_5_prediction_total
+            top_8 = 1.0 * correct_top_8_prediction / correct_top_8_prediction_total
 
             top_5_summ = tf.Summary()
             top_5_summ.value.add(
                 tag='top_5', simple_value=top_5)
             summary_writer.add_summary(top_5_summ, train_step)
+
+            top_8_summ = tf.Summary()
+            top_8_summ.value.add(
+                tag='top_8', simple_value=top_8)
+            summary_writer.add_summary(top_8_summ, train_step)
 
             precision_summ = tf.Summary()
             precision_summ.value.add(
@@ -263,8 +278,8 @@ def evaluate(hps):
             summary_writer.add_summary(best_precision_summ, train_step)
             summary_writer.add_summary(summaries, train_step)
             tf.logging.info(
-                'loss: %.3f, precision: %.3f, best precision: %.3f, top_5: %.3f' %
-                (loss, precision, best_precision, top_5))
+                'loss: %.3f, precision: %.3f, best precision: %.3f, top_5: %.3f, top_8: %.3f' %
+                (loss, precision, best_precision, top_5, top_8))
             # tf.logging.info(
             #     'loss: %.3f, precision: %.3f, best precision: %.3f' %
             #     (loss, precision, best_precision))
@@ -278,7 +293,7 @@ def evaluate(hps):
             if FLAGS.eval_once:
                 break
 
-            time.sleep(360)
+            time.sleep(180)
 
 
 def main(_):
@@ -301,7 +316,8 @@ def main(_):
     elif FLAGS.dataset == 'fdc':
         num_classes = 37
 
-    hps = resnet_model.HParams(batch_size=batch_size,
+    hps = resnet_model.HParams(dataset_name=FLAGS.dataset,
+                               batch_size=batch_size,
                                num_classes=num_classes,
                                min_lrn_rate=0.0001,
                                lrn_rate=0.1,
