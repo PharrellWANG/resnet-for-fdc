@@ -293,7 +293,7 @@ def evaluate(hps):
             if FLAGS.eval_once:
                 break
 
-            time.sleep(180)
+            time.sleep(300)
 
 
 def main(_):
