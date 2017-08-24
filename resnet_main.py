@@ -19,7 +19,7 @@ import time
 import six
 import sys
 
-import cifar_input
+import data_input
 import numpy as np
 import resnet_model
 import tensorflow as tf
@@ -45,143 +45,210 @@ tf.app.flags.DEFINE_string('log_root', '',
                            'parent directory of FLAGS.train_dir/eval_dir.')
 tf.app.flags.DEFINE_integer('num_gpus', 0,
                             'Number of gpus used for training. (0 or 1)')
+tf.app.flags.DEFINE_integer('block_size', 32,
+                            'block_size for fdc, can be 8, 16, 32 or 64')
 
 
 def train(hps):
     """Training loop."""
-    images, labels = cifar_input.build_input(
-        FLAGS.dataset, FLAGS.train_data_path, hps.batch_size, FLAGS.mode)
-    model = resnet_model.ResNet(hps, images, labels, FLAGS.mode)
-    model.build_graph()
+    with tf.device('/cpu:0'):
+        images, labels = data_input.build_input(
+            FLAGS.dataset, FLAGS.train_data_path, hps.batch_size, FLAGS.mode,
+            FLAGS.block_size)
 
-    param_stats = tf.contrib.tfprof.model_analyzer.print_model_analysis(
-        tf.get_default_graph(),
-        tfprof_options=tf.contrib.tfprof.model_analyzer.
-            TRAINABLE_VARS_PARAMS_STAT_OPTIONS)
-    sys.stdout.write('total_params: %d\n' % param_stats.total_parameters)
+    with tf.device('/gpu:0'):
+        model = resnet_model.ResNet(hps, images, labels, FLAGS.mode)
+        model.build_graph()
 
-    tf.contrib.tfprof.model_analyzer.print_model_analysis(
-        tf.get_default_graph(),
-        tfprof_options=tf.contrib.tfprof.model_analyzer.FLOAT_OPS_OPTIONS)
+        param_stats = tf.contrib.tfprof.model_analyzer.print_model_analysis(
+            tf.get_default_graph(),
+            tfprof_options=tf.contrib.tfprof.model_analyzer.
+                TRAINABLE_VARS_PARAMS_STAT_OPTIONS)
+        sys.stdout.write('total_params: %d\n' % param_stats.total_parameters)
 
-    truth = tf.argmax(model.labels, axis=1)
-    predictions = tf.argmax(model.predictions, axis=1)
-    precision = tf.reduce_mean(tf.to_float(tf.equal(predictions, truth)))
+        tf.contrib.tfprof.model_analyzer.print_model_analysis(
+            tf.get_default_graph(),
+            tfprof_options=tf.contrib.tfprof.model_analyzer.FLOAT_OPS_OPTIONS)
 
-    summary_hook = tf.train.SummarySaverHook(
-        save_steps=100,
-        output_dir=FLAGS.train_dir,
-        summary_op=tf.summary.merge([model.summaries,
-                                     tf.summary.scalar('Precision',
-                                                       precision)]))
+        truth = tf.argmax(model.labels, axis=1)
+        predictions = tf.argmax(model.predictions, axis=1)
+        precision = tf.reduce_mean(tf.to_float(tf.equal(predictions, truth)))
 
-    logging_hook = tf.train.LoggingTensorHook(
-        tensors={'step': model.global_step,
-                 'loss': model.cost,
-                 'precision': precision},
-        every_n_iter=100)
+        summary_hook = tf.train.SummarySaverHook(
+            save_steps=100,
+            output_dir=FLAGS.train_dir,
+            summary_op=tf.summary.merge([model.summaries,
+                                         tf.summary.scalar('Precision',
+                                                           precision)]))
 
-    class _LearningRateSetterHook(tf.train.SessionRunHook):
-        """Sets learning_rate based on global step."""
+        logging_hook = tf.train.LoggingTensorHook(
+            tensors={'step': model.global_step,
+                     'loss': model.cost,
+                     'precision': precision},
+            every_n_iter=100)
 
-        def begin(self):
-            self._lrn_rate = 0.1
+        class _LearningRateSetterHook(tf.train.SessionRunHook):
+            """Sets learning_rate based on global step."""
 
-        def before_run(self, run_context):
-            return tf.train.SessionRunArgs(
-                model.global_step,  # Asks for global step value.
-                feed_dict={
-                    model.lrn_rate: self._lrn_rate})  # Sets learning rate
-
-        def after_run(self, run_context, run_values):
-            train_step = run_values.results
-            if train_step < 40000:
+            def begin(self):
                 self._lrn_rate = 0.1
-            elif train_step < 60000:
-                self._lrn_rate = 0.01
-            elif train_step < 80000:
-                self._lrn_rate = 0.001
-            else:
-                self._lrn_rate = 0.0001
 
-    with tf.train.MonitoredTrainingSession(
-            checkpoint_dir=FLAGS.log_root,
-            hooks=[logging_hook, _LearningRateSetterHook()],
-            chief_only_hooks=[summary_hook],
-            # Since we provide a SummarySaverHook, we need to disable default
-            # SummarySaverHook. To do that we set save_summaries_steps to 0.
-            save_summaries_steps=0,
-            config=tf.ConfigProto(allow_soft_placement=True)) as mon_sess:
-        while not mon_sess.should_stop():
-            mon_sess.run(model.train_op)
+            def before_run(self, run_context):
+                return tf.train.SessionRunArgs(
+                    model.global_step,  # Asks for global step value.
+                    feed_dict={
+                        model.lrn_rate: self._lrn_rate})  # Sets learning rate
+
+            def after_run(self, run_context, run_values):
+                train_step = run_values.results
+                if train_step < 40000:
+                    self._lrn_rate = 0.1
+                elif train_step < 60000:
+                    self._lrn_rate = 0.01
+                elif train_step < 80000:
+                    self._lrn_rate = 0.001
+                else:
+                    self._lrn_rate = 0.0001
+
+        with tf.train.MonitoredTrainingSession(
+                checkpoint_dir=FLAGS.log_root,
+                hooks=[logging_hook, _LearningRateSetterHook()],
+                chief_only_hooks=[summary_hook],
+                # Since we provide a SummarySaverHook, we need to disable default
+                # SummarySaverHook. To do that we set save_summaries_steps to 0.
+                save_summaries_steps=0,
+                config=tf.ConfigProto(allow_soft_placement=True)) as mon_sess:
+            while not mon_sess.should_stop():
+                mon_sess.run(model.train_op)
 
 
 def evaluate(hps):
     """Eval loop."""
-    images, labels = cifar_input.build_input(
-        FLAGS.dataset, FLAGS.eval_data_path, hps.batch_size, FLAGS.mode)
-    model = resnet_model.ResNet(hps, images, labels, FLAGS.mode)
-    model.build_graph()
-    saver = tf.train.Saver()
-    summary_writer = tf.summary.FileWriter(FLAGS.eval_dir)
+    with tf.device('/cpu:0'):
+        images, labels = data_input.build_input(
+            FLAGS.dataset, FLAGS.eval_data_path, hps.batch_size, FLAGS.mode,
+            FLAGS.block_size)
+        model = resnet_model.ResNet(hps, images, labels, FLAGS.mode)
+        model.build_graph()
+        # saver = tf.train.Saver()
+        # summary_writer = tf.summary.FileWriter(FLAGS.eval_dir)
+        #
+        # sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+        # tf.train.start_queue_runners(sess)
+        #
+        # best_precision = 0.0
+        saver = tf.train.Saver()
+        summary_writer = tf.summary.FileWriter(FLAGS.eval_dir)
+        config = tf.ConfigProto(
+            device_count={'GPU': 0}
+        )
+        sess = tf.Session(config=config)
 
-    sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-    tf.train.start_queue_runners(sess)
+        # sess = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
+        tf.train.start_queue_runners(sess)
 
-    best_precision = 0.0
-    while True:
-        try:
-            ckpt_state = tf.train.get_checkpoint_state(FLAGS.log_root)
-        except tf.errors.OutOfRangeError as e:
-            tf.logging.error('Cannot restore checkpoint: %s', e)
-            continue
-        if not (ckpt_state and ckpt_state.model_checkpoint_path):
-            tf.logging.info('No model to eval yet at %s', FLAGS.log_root)
-            continue
-        tf.logging.info('Loading checkpoint %s',
-                        ckpt_state.model_checkpoint_path)
-        saver.restore(sess, ckpt_state.model_checkpoint_path)
+        best_precision = 0.0
+        while True:
+            # time.sleep(2000)
+            try:
+                ckpt_state = tf.train.get_checkpoint_state(FLAGS.log_root)
+            except tf.errors.OutOfRangeError as e:
+                tf.logging.error('Cannot restore checkpoint: %s', e)
+                continue
+            if not (ckpt_state and ckpt_state.model_checkpoint_path):
+                tf.logging.info('No model to eval yet at %s', FLAGS.log_root)
+                continue
+            tf.logging.info('Loading checkpoint %s', ckpt_state.model_checkpoint_path)
+            saver.restore(sess, ckpt_state.model_checkpoint_path)
 
-        total_prediction, correct_prediction = 0, 0
-        for _ in six.moves.range(FLAGS.eval_batch_count):
-            (summaries, loss, predictions, truth, train_step) = sess.run(
-                [model.summaries, model.cost, model.predictions,
-                 model.labels, model.global_step])
+            total_prediction, correct_prediction = 0, 0
+            start = time.time()
+            x10_angularx10_angularx = np.zeros((10, 10))
+            for _ in six.moves.range(FLAGS.eval_batch_count):
+                (summaries, loss, predictions, truth, train_step) = sess.run(
+                    [model.summaries, model.cost, model.predictions,
+                     model.labels, model.global_step])
 
-            truth = np.argmax(truth, axis=1)
-            predictions = np.argmax(predictions, axis=1)
-            correct_prediction += np.sum(truth == predictions)
-            total_prediction += predictions.shape[0]
+                # predictions = np.squeeze(predictions)
+                #
+                # top_k = predictions.argsort()[-5:][::-1]
+                # total_score = 0
+                # for node_id in top_k:
+                #     score = predictions[node_id]
+                #     total_score += score
+                #     print('===========~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+                #     print('Mode %s (score = %.5f)' % (node_id, score))
+                #     print('')
+                # ##########################################
+                # top_5_precision_summ = tf.Summary()
+                # top_5_precision_summ.value.add(
+                #     tag='eval_Top_5_Precision', simple_value=total_score)
+                # ##########################################
 
-        precision = 1.0 * correct_prediction / total_prediction
-        best_precision = max(precision, best_precision)
+                truth = np.argmax(truth, axis=1)
+                predictions = np.argmax(predictions, axis=1)
 
-        precision_summ = tf.Summary()
-        precision_summ.value.add(
-            tag='Precision', simple_value=precision)
-        summary_writer.add_summary(precision_summ, train_step)
-        best_precision_summ = tf.Summary()
-        best_precision_summ.value.add(
-            tag='Best Precision', simple_value=best_precision)
-        summary_writer.add_summary(best_precision_summ, train_step)
-        summary_writer.add_summary(summaries, train_step)
-        tf.logging.info('loss: %.3f, precision: %.3f, best precision: %.3f' %
-                        (loss, precision, best_precision))
-        summary_writer.flush()
+                for idx in range(hps.batch_size):
+                    row = truth[idx]
+                    col = predictions[idx]
+                    x10_angularx10_angularx[row, col] += 1
+                    # print('index:  ' + str(idx) + '     correct_label: ' + str(row) + '     prediction: ' + str(col) +
+                    #       '     x10_angularx10_angularx[' + str(row) + ', ' + str(col) + '] = ' + str(x10_angularx10_angularx[row, col]))
 
-        if FLAGS.eval_once:
-            break
+                # print('truth: ' + str(truth) + '     prediction: ' + str(predictions))
 
-        time.sleep(60)
+                correct_prediction += np.sum(truth == predictions)
+                total_prediction += predictions.shape[0]
+
+            # confusion matrix #################
+            # for row in range(10):
+            #     print('---------------')
+            #     print('mode : ' + str(row))
+            #     print('----------')
+            #     for col in range(10):
+            #         if x10_angularx10_angularx[row, col] != 0.0:
+            #             print('mode: ' + str(row) + ' --->    number of predictions in mode ' + str(col) + ' :  ' + str(
+            #                 x10_angularx10_angularx[row, col]))
+            #
+            # np.savetxt("/Users/Pharrell_WANG/PycharmProjects/resnet_vcmd_model_X/classification_distribution"
+            #            "/cifar_10x10__ " + str(ckpt_state.model_checkpoint_path)[-10:] + ".csv", x10_angularx10_angularx, fmt='%i',
+            #            delimiter=",")
+            # confusion matrix #################
+            precision = 1.0 * correct_prediction / total_prediction
+            best_precision = max(precision, best_precision)
+
+
+
+            precision_summ = tf.Summary()
+            precision_summ.value.add(
+                tag='Precision', simple_value=precision)
+            summary_writer.add_summary(precision_summ, train_step)
+            best_precision_summ = tf.Summary()
+            best_precision_summ.value.add(
+                tag='Best Precision', simple_value=best_precision)
+            summary_writer.add_summary(best_precision_summ, train_step)
+            summary_writer.add_summary(summaries, train_step)
+            tf.logging.info('loss: %.3f, precision: %.3f, best precision: %.3f' %
+                            (loss, precision, best_precision))
+            summary_writer.flush()
+
+            elapsed_time = time.time() - start
+            print('total prediction: ' + str(total_prediction))
+            print('single time spent for each prediction: ' + str(elapsed_time / float(total_prediction)))
+
+            if FLAGS.eval_once:
+                break
+
+            time.sleep(1200)
 
 
 def main(_):
-    if FLAGS.num_gpus == 0:
-        dev = '/cpu:0'
-    elif FLAGS.num_gpus == 1:
-        dev = '/gpu:0'
-    else:
-        raise ValueError('Only support 0 or 1 gpu.')
+    # if FLAGS.num_gpus == 0:
+    #     dev = '/cpu:0'
+    # elif FLAGS.num_gpus == 1:
+    #     dev = '/gpu:0'
+    # else:
+    #     raise ValueError('Only support 0 or 1 gpu.')
 
     if FLAGS.mode == 'train':
         batch_size = 128
@@ -192,6 +259,8 @@ def main(_):
         num_classes = 10
     elif FLAGS.dataset == 'cifar100':
         num_classes = 100
+    elif FLAGS.dataset == 'fdc':
+        num_classes = 37
 
     hps = resnet_model.HParams(batch_size=batch_size,
                                num_classes=num_classes,
@@ -203,11 +272,11 @@ def main(_):
                                relu_leakiness=0.1,
                                optimizer='mom')
 
-    with tf.device(dev):
-        if FLAGS.mode == 'train':
-            train(hps)
-        elif FLAGS.mode == 'eval':
-            evaluate(hps)
+    # with tf.device(dev):
+    if FLAGS.mode == 'train':
+        train(hps)
+    elif FLAGS.mode == 'eval':
+        evaluate(hps)
 
 
 if __name__ == '__main__':
