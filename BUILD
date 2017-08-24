@@ -29,12 +29,12 @@ py_binary(
         "resnet_main.py",
     ],
     deps = [
-        ":cifar_input",
+        ":data_input",
         ":resnet_model",
     ],
 )
 
 py_library(
-    name = "cifar_input",
-    srcs = ["cifar_input.py"],
+    name = "data_input",
+    srcs = ["data_input.py"],
 )
