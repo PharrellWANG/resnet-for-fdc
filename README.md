@@ -1,10 +1,7 @@
 <font size=4><b>Reproduced ResNet on CIFAR-10 and CIFAR-100 dataset.</b></font>
 
-contact: panyx0718 (xpan@google.com)
-
-<b>Dataset:</b>
-
-https://www.cs.toronto.edu/~kriz/cifar.html
+##### This project is originated from tensorflow model zoo. Pharrell Adapted the resnet for fast mode decision.
+Original Author: panyx0718 (xpan@google.com)
 
 <b>Related papers:</b>
 
