@@ -168,6 +168,10 @@ def evaluate(hps):
             correct_top_5_prediction_total = 0
             correct_top_8_prediction = 0
             correct_top_8_prediction_total = 0
+            correct_top_12_prediction = 0
+            correct_top_12_prediction_total = 0
+            correct_top_16_prediction = 0
+            correct_top_16_prediction_total = 0
             start = time.time()
             # x_angularx10_angularx = np.zeros((10, 10))
             for _ in six.moves.range(FLAGS.eval_batch_count):
@@ -210,6 +214,8 @@ def evaluate(hps):
 
                     for_top_5 = col.argsort()[-5:][::-1]
                     for_top_8 = col.argsort()[-8:][::-1]
+                    for_top_12 = col.argsort()[-12:][::-1]
+                    for_top_16 = col.argsort()[-16:][::-1]
                     # print(row)
                     # print(for_top_5)
                     # print(row in for_top_5)
@@ -220,6 +226,14 @@ def evaluate(hps):
                     if row in for_top_8:
                         correct_top_8_prediction += 1
                     correct_top_8_prediction_total += 1
+
+                    if row in for_top_12:
+                        correct_top_12_prediction += 1
+                    correct_top_12_prediction_total += 1
+
+                    if row in for_top_16:
+                        correct_top_16_prediction += 1
+                    correct_top_16_prediction_total += 1
 
                 predictions = np.argmax(predictions, axis=1)
                 # for idx in range(hps.batch_size):
@@ -256,6 +270,8 @@ def evaluate(hps):
             # avg_top_5 = total_top_5 / FLAGS.eval_batch_count
             top_5 = 1.0 * correct_top_5_prediction / correct_top_5_prediction_total
             top_8 = 1.0 * correct_top_8_prediction / correct_top_8_prediction_total
+            top_12 = 1.0 * correct_top_12_prediction / correct_top_12_prediction_total
+            top_16 = 1.0 * correct_top_16_prediction / correct_top_16_prediction_total
 
             top_5_summ = tf.Summary()
             top_5_summ.value.add(
@@ -278,8 +294,8 @@ def evaluate(hps):
             summary_writer.add_summary(best_precision_summ, train_step)
             summary_writer.add_summary(summaries, train_step)
             tf.logging.info(
-                'loss: %.3f, precision: %.3f, best precision: %.3f, top_5: %.3f, top_8: %.3f' %
-                (loss, precision, best_precision, top_5, top_8))
+                'loss: %.3f, precision: %.3f, best precision: %.3f, top_5: %.3f, top_8: %.3f, top_12: %.3f, top_16: %.3f' %
+                (loss, precision, best_precision, top_5, top_8, top_12, top_16))
             # tf.logging.info(
             #     'loss: %.3f, precision: %.3f, best precision: %.3f' %
             #     (loss, precision, best_precision))
