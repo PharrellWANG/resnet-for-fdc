@@ -188,8 +188,11 @@ def evaluate(hps):
                 truth = np.argmax(truth, axis=1)
                 predictions = np.argmax(predictions, axis=1)
 
+                truth_ = np.argmax(truth)
+                predictions_ = np.argmax(predictions)
+
                 top_5 = tf.metrics.mean(
-                    tf.nn.in_top_k(predictions=predictions, targets=truth,
+                    tf.nn.in_top_k(predictions=predictions_, targets=truth_,
                                    k=5))
 
                 for idx in range(hps.batch_size):
