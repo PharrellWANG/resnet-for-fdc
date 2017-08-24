@@ -161,7 +161,7 @@ def evaluate(hps):
             tf.logging.info('Loading checkpoint %s', ckpt_state.model_checkpoint_path)
             saver.restore(sess, ckpt_state.model_checkpoint_path)
 
-            total_prediction, correct_prediction = 0, 0
+            total_top_5, total_prediction, correct_prediction = 0, 0, 0
             start = time.time()
             x10_angularx10_angularx = np.zeros((10, 10))
             for _ in six.moves.range(FLAGS.eval_batch_count):
@@ -188,6 +188,10 @@ def evaluate(hps):
                 truth = np.argmax(truth, axis=1)
                 predictions = np.argmax(predictions, axis=1)
 
+                top_5 = tf.metrics.mean(
+                    tf.nn.in_top_k(predictions=predictions, targets=truth,
+                                   k=5))
+
                 for idx in range(hps.batch_size):
                     row = truth[idx]
                     col = predictions[idx]
@@ -199,6 +203,7 @@ def evaluate(hps):
 
                 correct_prediction += np.sum(truth == predictions)
                 total_prediction += predictions.shape[0]
+                total_top_5 += top_5
 
             # confusion matrix #################
             # for row in range(10):
@@ -216,20 +221,25 @@ def evaluate(hps):
             # confusion matrix #################
             precision = 1.0 * correct_prediction / total_prediction
             best_precision = max(precision, best_precision)
+            avg_top_5 = total_top_5 / FLAGS.eval_batch_count
 
-
+            top_5_summ = tf.Summary()
+            top_5_summ.value.add(
+                tag='top-5', simple_value=avg_top_5)
+            summary_writer.add_summary(top_5_summ, train_step)
 
             precision_summ = tf.Summary()
             precision_summ.value.add(
                 tag='Precision', simple_value=precision)
             summary_writer.add_summary(precision_summ, train_step)
+
             best_precision_summ = tf.Summary()
             best_precision_summ.value.add(
                 tag='Best Precision', simple_value=best_precision)
             summary_writer.add_summary(best_precision_summ, train_step)
             summary_writer.add_summary(summaries, train_step)
-            tf.logging.info('loss: %.3f, precision: %.3f, best precision: %.3f' %
-                            (loss, precision, best_precision))
+            tf.logging.info('loss: %.3f, precision: %.3f, best precision: %.3f, top-5: %.3f' %
+                            (loss, precision, best_precision, avg_top_5))
             summary_writer.flush()
 
             elapsed_time = time.time() - start
