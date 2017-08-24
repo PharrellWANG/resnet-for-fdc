@@ -25,7 +25,7 @@ import resnet_model
 import tensorflow as tf
 
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('dataset', 'cifar10', 'cifar10 or cifar100.')
+tf.app.flags.DEFINE_string('dataset', 'cifar10', 'cifar10, cifar100 ro fdc')
 tf.app.flags.DEFINE_string('mode', 'train', 'train or eval.')
 tf.app.flags.DEFINE_string('train_data_path', '',
                            'Filepattern for training data.')
@@ -36,7 +36,7 @@ tf.app.flags.DEFINE_string('train_dir', '',
                            'Directory to keep training outputs.')
 tf.app.flags.DEFINE_string('eval_dir', '',
                            'Directory to keep eval outputs.')
-tf.app.flags.DEFINE_integer('eval_batch_count', 50,
+tf.app.flags.DEFINE_integer('eval_batch_count', 207,
                             'Number of batches to eval.')
 tf.app.flags.DEFINE_bool('eval_once', False,
                          'Whether evaluate the model only once.')
@@ -75,7 +75,8 @@ def train(hps):
         precision = tf.reduce_mean(tf.to_float(tf.equal(predictions, truth)))
 
         summary_hook = tf.train.SummarySaverHook(
-            save_steps=100,
+            save_steps=50,
+            # save_secs=120,
             output_dir=FLAGS.train_dir,
             summary_op=tf.summary.merge([model.summaries,
                                          tf.summary.scalar('Precision',
@@ -158,20 +159,28 @@ def evaluate(hps):
             if not (ckpt_state and ckpt_state.model_checkpoint_path):
                 tf.logging.info('No model to eval yet at %s', FLAGS.log_root)
                 continue
-            tf.logging.info('Loading checkpoint %s', ckpt_state.model_checkpoint_path)
+            tf.logging.info('Loading checkpoint %s',
+                            ckpt_state.model_checkpoint_path)
             saver.restore(sess, ckpt_state.model_checkpoint_path)
 
             total_top_5, total_prediction, correct_prediction = 0, 0, 0
+            correct_top_5_prediction = 0
+            correct_top_5_prediction_total = 0
+            correct_top_8_prediction = 0
+            correct_top_8_prediction_total = 0
             start = time.time()
-            x10_angularx10_angularx = np.zeros((10, 10))
+            # x_angularx10_angularx = np.zeros((10, 10))
             for _ in six.moves.range(FLAGS.eval_batch_count):
                 (summaries, loss, predictions, truth, train_step) = sess.run(
                     [model.summaries, model.cost, model.predictions,
                      model.labels, model.global_step])
 
+                # print(truth)
+                # print(predictions)
                 # predictions = np.squeeze(predictions)
-                #
                 # top_k = predictions.argsort()[-5:][::-1]
+                # print('haha top 5: ---->')
+                # print(top_k)
                 # total_score = 0
                 # for node_id in top_k:
                 #     score = predictions[node_id]
@@ -184,19 +193,39 @@ def evaluate(hps):
                 # top_5_precision_summ.value.add(
                 #     tag='eval_Top_5_Precision', simple_value=total_score)
                 # ##########################################
-
+                # print('---------------~~~~~~~~~~~~')
+                # print('---------------')
+                # print('---------------')
+                # print(type(predictions))
+                # print(type(labels))
+                # print(predictions.size)
+                # print(predictions)
+                # print(predictions.shape)
+                # print(predictions.dtype)
                 truth = np.argmax(truth, axis=1)
-                predictions = np.argmax(predictions, axis=1)
-
-                # top_5 = tf.metrics.mean(
-                #     tf.nn.in_top_k(predictions=predictions_, targets=truth_,
-                #                    k=5))
-                top_5 = tf.metrics.recall_at_k(predictions=predictions, labels=truth, k=5)
 
                 for idx in range(hps.batch_size):
                     row = truth[idx]
                     col = predictions[idx]
-                    x10_angularx10_angularx[row, col] += 1
+
+                    for_top_5 = col.argsort()[-5:][::-1]
+                    for_top_8 = col.argsort()[-8:][::-1]
+                    # print(row)
+                    # print(for_top_5)
+                    # print(row in for_top_5)
+                    if row in for_top_5:
+                        correct_top_5_prediction += 1
+                    correct_top_5_prediction_total += 1
+
+                    if row in for_top_8:
+                        correct_top_8_prediction += 1
+                    correct_top_8_prediction_total += 1
+
+                predictions = np.argmax(predictions, axis=1)
+                # for idx in range(hps.batch_size):
+                #     row = truth[idx]
+                #     col = predictions[idx]
+                    # x10_angularx10_angularx[row, col] += 1
                     # print('index:  ' + str(idx) + '     correct_label: ' + str(row) + '     prediction: ' + str(col) +
                     #       '     x10_angularx10_angularx[' + str(row) + ', ' + str(col) + '] = ' + str(x10_angularx10_angularx[row, col]))
 
@@ -204,9 +233,11 @@ def evaluate(hps):
 
                 correct_prediction += np.sum(truth == predictions)
                 total_prediction += predictions.shape[0]
-                total_top_5 += top_5
+                # total_top_5 += top_5
 
+            # *********************************
             # confusion matrix #################
+            # *********************************
             # for row in range(10):
             #     print('---------------')
             #     print('mode : ' + str(row))
@@ -222,12 +253,19 @@ def evaluate(hps):
             # confusion matrix #################
             precision = 1.0 * correct_prediction / total_prediction
             best_precision = max(precision, best_precision)
-            avg_top_5 = total_top_5 / FLAGS.eval_batch_count
+            # avg_top_5 = total_top_5 / FLAGS.eval_batch_count
+            top_5 = 1.0 * correct_top_5_prediction / correct_top_5_prediction_total
+            top_8 = 1.0 * correct_top_8_prediction / correct_top_8_prediction_total
 
             top_5_summ = tf.Summary()
             top_5_summ.value.add(
-                tag='top-5', simple_value=avg_top_5)
+                tag='top_5', simple_value=top_5)
             summary_writer.add_summary(top_5_summ, train_step)
+
+            top_8_summ = tf.Summary()
+            top_8_summ.value.add(
+                tag='top_8', simple_value=top_8)
+            summary_writer.add_summary(top_8_summ, train_step)
 
             precision_summ = tf.Summary()
             precision_summ.value.add(
@@ -239,18 +277,23 @@ def evaluate(hps):
                 tag='Best Precision', simple_value=best_precision)
             summary_writer.add_summary(best_precision_summ, train_step)
             summary_writer.add_summary(summaries, train_step)
-            tf.logging.info('loss: %.3f, precision: %.3f, best precision: %.3f, top-5: %.3f' %
-                            (loss, precision, best_precision, avg_top_5))
+            tf.logging.info(
+                'loss: %.3f, precision: %.3f, best precision: %.3f, top_5: %.3f, top_8: %.3f' %
+                (loss, precision, best_precision, top_5, top_8))
+            # tf.logging.info(
+            #     'loss: %.3f, precision: %.3f, best precision: %.3f' %
+            #     (loss, precision, best_precision))
             summary_writer.flush()
 
             elapsed_time = time.time() - start
             print('total prediction: ' + str(total_prediction))
-            print('single time spent for each prediction: ' + str(elapsed_time / float(total_prediction)))
+            print('single time spent for each prediction: ' + str(
+                elapsed_time / float(total_prediction)))
 
             if FLAGS.eval_once:
                 break
 
-            time.sleep(120)
+            time.sleep(180)
 
 
 def main(_):
@@ -273,7 +316,8 @@ def main(_):
     elif FLAGS.dataset == 'fdc':
         num_classes = 37
 
-    hps = resnet_model.HParams(batch_size=batch_size,
+    hps = resnet_model.HParams(dataset_name=FLAGS.dataset,
+                               batch_size=batch_size,
                                num_classes=num_classes,
                                min_lrn_rate=0.0001,
                                lrn_rate=0.1,
