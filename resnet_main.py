@@ -172,8 +172,10 @@ def evaluate(hps):
             correct_top_12_prediction_total = 0
             correct_top_16_prediction = 0
             correct_top_16_prediction_total = 0
+            correct_top_24_prediction = 0
+            correct_top_24_prediction_total = 0
             start = time.time()
-            # x_angularx10_angularx = np.zeros((10, 10))
+            confusion_matrix_37x37 = np.zeros((37, 37))
             for _ in six.moves.range(FLAGS.eval_batch_count):
                 (summaries, loss, predictions, truth, train_step) = sess.run(
                     [model.summaries, model.cost, model.predictions,
@@ -216,6 +218,7 @@ def evaluate(hps):
                     for_top_8 = col.argsort()[-8:][::-1]
                     for_top_12 = col.argsort()[-12:][::-1]
                     for_top_16 = col.argsort()[-16:][::-1]
+                    for_top_24 = col.argsort()[-24:][::-1]
                     # print(row)
                     # print(for_top_5)
                     # print(row in for_top_5)
@@ -235,13 +238,17 @@ def evaluate(hps):
                         correct_top_16_prediction += 1
                     correct_top_16_prediction_total += 1
 
+                    if row in for_top_24:
+                        correct_top_24_prediction += 1
+                    correct_top_24_prediction_total += 1
+
                 predictions = np.argmax(predictions, axis=1)
-                # for idx in range(hps.batch_size):
-                #     row = truth[idx]
-                #     col = predictions[idx]
-                    # x10_angularx10_angularx[row, col] += 1
+                for idx in range(hps.batch_size):
+                    row = truth[idx]
+                    col = predictions[idx]
+                    confusion_matrix_37x37[row, col] += 1
                     # print('index:  ' + str(idx) + '     correct_label: ' + str(row) + '     prediction: ' + str(col) +
-                    #       '     x10_angularx10_angularx[' + str(row) + ', ' + str(col) + '] = ' + str(x10_angularx10_angularx[row, col]))
+                    #       '     confusion_matrix_37x37[' + str(row) + ', ' + str(col) + '] = ' + str(confusion_matrix_37x37[row, col]))
 
                 # print('truth: ' + str(truth) + '     prediction: ' + str(predictions))
 
@@ -252,18 +259,18 @@ def evaluate(hps):
             # *********************************
             # confusion matrix #################
             # *********************************
-            # for row in range(10):
-            #     print('---------------')
-            #     print('mode : ' + str(row))
-            #     print('----------')
-            #     for col in range(10):
-            #         if x10_angularx10_angularx[row, col] != 0.0:
-            #             print('mode: ' + str(row) + ' --->    number of predictions in mode ' + str(col) + ' :  ' + str(
-            #                 x10_angularx10_angularx[row, col]))
-            #
-            # np.savetxt("/Users/Pharrell_WANG/PycharmProjects/resnet_vcmd_model_X/classification_distribution"
-            #            "/cifar_10x10__ " + str(ckpt_state.model_checkpoint_path)[-10:] + ".csv", x10_angularx10_angularx, fmt='%i',
-            #            delimiter=",")
+            for row in range(37):
+                print('---------------')
+                print('mode : ' + str(row))
+                print('----------')
+                for col in range(37):
+                    if confusion_matrix_37x37[row, col] != 0.0:
+                        print('mode: ' + str(row) + ' --->    number of predictions in mode ' + str(col) + ' :  ' + str(
+                            confusion_matrix_37x37[row, col]))
+
+            np.savetxt("/Users/Pharrell_WANG/workspace/models/resnet/confusion_matrix/"
+                        + str(ckpt_state.model_checkpoint_path)[-10:] + ".csv", confusion_matrix_37x37, fmt='%i',
+                       delimiter=",")
             # confusion matrix #################
             precision = 1.0 * correct_prediction / total_prediction
             best_precision = max(precision, best_precision)
@@ -272,6 +279,7 @@ def evaluate(hps):
             top_8 = 1.0 * correct_top_8_prediction / correct_top_8_prediction_total
             top_12 = 1.0 * correct_top_12_prediction / correct_top_12_prediction_total
             top_16 = 1.0 * correct_top_16_prediction / correct_top_16_prediction_total
+            top_24 = 1.0 * correct_top_24_prediction / correct_top_24_prediction_total
 
             top_5_summ = tf.Summary()
             top_5_summ.value.add(
@@ -293,6 +301,11 @@ def evaluate(hps):
                 tag='top_16', simple_value=top_16)
             summary_writer.add_summary(top_16_summ, train_step)
 
+            top_24_summ = tf.Summary()
+            top_24_summ.value.add(
+                tag='top_24', simple_value=top_24)
+            summary_writer.add_summary(top_24_summ, train_step)
+
             precision_summ = tf.Summary()
             precision_summ.value.add(
                 tag='Precision', simple_value=precision)
@@ -304,8 +317,8 @@ def evaluate(hps):
             summary_writer.add_summary(best_precision_summ, train_step)
             summary_writer.add_summary(summaries, train_step)
             tf.logging.info(
-                'loss: %.3f, precision: %.3f, best precision: %.3f, top_5: %.3f, top_8: %.3f, top_12: %.3f, top_16: %.3f' %
-                (loss, precision, best_precision, top_5, top_8, top_12, top_16))
+                'loss: %.3f, precision: %.3f, best precision: %.3f, top_5: %.3f, top_8: %.3f, top_12: %.3f, top_16: %.3f, top_24: %.3f' %
+                (loss, precision, best_precision, top_5, top_8, top_12, top_16, top_24))
             # tf.logging.info(
             #     'loss: %.3f, precision: %.3f, best precision: %.3f' %
             #     (loss, precision, best_precision))
@@ -319,7 +332,7 @@ def evaluate(hps):
             if FLAGS.eval_once:
                 break
 
-            time.sleep(300)
+            time.sleep(360)
 
 
 def main(_):
