@@ -61,6 +61,9 @@ def train(hps):
         # export inference graph as pb format (proto)
         tf.train.write_graph(tf.get_default_graph(), FLAGS.train_dir, 'fdc_resnet_graph.pb', False)
 
+        # print('.....')
+        [print(n.name) for n in tf.get_default_graph().as_graph_def().node]
+
         summary_hook = tf.train.SummarySaverHook(
             save_steps=50,
             # save_secs=120,
