@@ -1,0 +1,5 @@
+model_checkpoint_path: "/Users/Pharrell_WANG/workspace/models/resnet/94430/model.ckpt-94430"
+all_model_checkpoint_paths: "/Users/Pharrell_WANG/workspace/models/resnet/94430/model.ckpt-92566"
+all_model_checkpoint_paths: "/Users/Pharrell_WANG/workspace/models/resnet/94430/model.ckpt-93182"
+all_model_checkpoint_paths: "/Users/Pharrell_WANG/workspace/models/resnet/94430/model.ckpt-93806"
+all_model_checkpoint_paths: "/Users/Pharrell_WANG/workspace/models/resnet/94430/model.ckpt-94430"

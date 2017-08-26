@@ -1,18 +1,3 @@
-# Copyright 2016 The TensorFlow Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
 """ResNet Train/Eval module.
 """
 import time
@@ -62,8 +47,7 @@ def train(hps):
 
         param_stats = tf.contrib.tfprof.model_analyzer.print_model_analysis(
             tf.get_default_graph(),
-            tfprof_options=tf.contrib.tfprof.model_analyzer.
-                TRAINABLE_VARS_PARAMS_STAT_OPTIONS)
+            tfprof_options=tf.contrib.tfprof.model_analyzer.TRAINABLE_VARS_PARAMS_STAT_OPTIONS)
         sys.stdout.write('total_params: %d\n' % param_stats.total_parameters)
 
         tf.contrib.tfprof.model_analyzer.print_model_analysis(
@@ -73,6 +57,9 @@ def train(hps):
         truth = tf.argmax(model.labels, axis=1)
         predictions = tf.argmax(model.predictions, axis=1)
         precision = tf.reduce_mean(tf.to_float(tf.equal(predictions, truth)))
+
+        # export inference graph as pb format (proto)
+        tf.train.write_graph(tf.get_default_graph(), FLAGS.train_dir, 'fdc_resnet_graph.pb', False)
 
         summary_hook = tf.train.SummarySaverHook(
             save_steps=50,
@@ -90,6 +77,9 @@ def train(hps):
 
         class _LearningRateSetterHook(tf.train.SessionRunHook):
             """Sets learning_rate based on global step."""
+
+            def __init__(self):
+                self._lrn_rate = 0.1
 
             def begin(self):
                 self._lrn_rate = 0.1
@@ -131,13 +121,6 @@ def evaluate(hps):
             FLAGS.block_size)
         model = resnet_model.ResNet(hps, images, labels, FLAGS.mode)
         model.build_graph()
-        # saver = tf.train.Saver()
-        # summary_writer = tf.summary.FileWriter(FLAGS.eval_dir)
-        #
-        # sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-        # tf.train.start_queue_runners(sess)
-        #
-        # best_precision = 0.0
         saver = tf.train.Saver()
         summary_writer = tf.summary.FileWriter(FLAGS.eval_dir)
         config = tf.ConfigProto(
@@ -145,7 +128,6 @@ def evaluate(hps):
         )
         sess = tf.Session(config=config)
 
-        # sess = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
         tf.train.start_queue_runners(sess)
 
         best_precision = 0.0
@@ -165,47 +147,41 @@ def evaluate(hps):
 
             total_top_5, total_prediction, correct_prediction = 0, 0, 0
             correct_top_5_prediction = 0
-            correct_top_5_prediction_total = 0
+            top_5_prediction_total = 0
             correct_top_8_prediction = 0
-            correct_top_8_prediction_total = 0
+            top_8_prediction_total = 0
             correct_top_12_prediction = 0
-            correct_top_12_prediction_total = 0
+            top_12_prediction_total = 0
             correct_top_16_prediction = 0
-            correct_top_16_prediction_total = 0
+            top_16_prediction_total = 0
+            correct_top_24_prediction = 0
+            top_24_prediction_total = 0
+            correct_top_28_prediction = 0
+            top_28_prediction_total = 0
+
+            dmms_not_in_top_5 = 0
+            dmms_not_in_top_8 = 0
+            dmms_not_in_top_12 = 0
+            dmms_not_in_top_16 = 0
+            dmms_not_in_top_24 = 0
+            dmms_not_in_top_28 = 0
+
+            correct_in_range_one = 0
+            correct_in_range_two = 0
+            correct_in_range_three = 0
+            correct_in_range_four = 0
+            correct_in_range_five = 0
+
+            loss = 0  # for eliminating IDE warning
+            summaries = 0  # for eliminating IDE warning
+
             start = time.time()
-            # x_angularx10_angularx = np.zeros((10, 10))
+            confusion_matrix_37x37 = np.zeros((37, 37))
+            # noinspection PyUnresolvedReferences
             for _ in six.moves.range(FLAGS.eval_batch_count):
                 (summaries, loss, predictions, truth, train_step) = sess.run(
                     [model.summaries, model.cost, model.predictions,
                      model.labels, model.global_step])
-
-                # print(truth)
-                # print(predictions)
-                # predictions = np.squeeze(predictions)
-                # top_k = predictions.argsort()[-5:][::-1]
-                # print('haha top 5: ---->')
-                # print(top_k)
-                # total_score = 0
-                # for node_id in top_k:
-                #     score = predictions[node_id]
-                #     total_score += score
-                #     print('===========~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-                #     print('Mode %s (score = %.5f)' % (node_id, score))
-                #     print('')
-                # ##########################################
-                # top_5_precision_summ = tf.Summary()
-                # top_5_precision_summ.value.add(
-                #     tag='eval_Top_5_Precision', simple_value=total_score)
-                # ##########################################
-                # print('---------------~~~~~~~~~~~~')
-                # print('---------------')
-                # print('---------------')
-                # print(type(predictions))
-                # print(type(labels))
-                # print(predictions.size)
-                # print(predictions)
-                # print(predictions.shape)
-                # print(predictions.dtype)
                 truth = np.argmax(truth, axis=1)
 
                 for idx in range(hps.batch_size):
@@ -216,62 +192,112 @@ def evaluate(hps):
                     for_top_8 = col.argsort()[-8:][::-1]
                     for_top_12 = col.argsort()[-12:][::-1]
                     for_top_16 = col.argsort()[-16:][::-1]
-                    # print(row)
-                    # print(for_top_5)
-                    # print(row in for_top_5)
+                    for_top_24 = col.argsort()[-24:][::-1]
+                    for_top_28 = col.argsort()[-28:][::-1]
                     if row in for_top_5:
                         correct_top_5_prediction += 1
-                    correct_top_5_prediction_total += 1
+                    top_5_prediction_total += 1
 
                     if row in for_top_8:
                         correct_top_8_prediction += 1
-                    correct_top_8_prediction_total += 1
+                    top_8_prediction_total += 1
 
                     if row in for_top_12:
                         correct_top_12_prediction += 1
-                    correct_top_12_prediction_total += 1
+                    top_12_prediction_total += 1
 
                     if row in for_top_16:
                         correct_top_16_prediction += 1
-                    correct_top_16_prediction_total += 1
+                    top_16_prediction_total += 1
+
+                    if row in for_top_24:
+                        correct_top_24_prediction += 1
+                    top_24_prediction_total += 1
+
+                    if row in for_top_28:
+                        correct_top_28_prediction += 1
+                    top_28_prediction_total += 1
+
+                    if 35 not in for_top_5 and 36 not in for_top_5:
+                        dmms_not_in_top_5 += 1
+                    if 35 not in for_top_8 and 36 not in for_top_8:
+                        dmms_not_in_top_8 += 1
+                    if 35 not in for_top_12 and 36 not in for_top_12:
+                        dmms_not_in_top_12 += 1
+                    if 35 not in for_top_16 and 36 not in for_top_16:
+                        dmms_not_in_top_16 += 1
+                    if 35 not in for_top_24 and 36 not in for_top_24:
+                        dmms_not_in_top_24 += 1
+                    if 35 not in for_top_28 and 36 not in for_top_28:
+                        dmms_not_in_top_28 += 1
 
                 predictions = np.argmax(predictions, axis=1)
-                # for idx in range(hps.batch_size):
-                #     row = truth[idx]
-                #     col = predictions[idx]
-                    # x10_angularx10_angularx[row, col] += 1
+                for idx in range(hps.batch_size):
+                    row = truth[idx]
+                    col = predictions[idx]
+                    confusion_matrix_37x37[row, col] += 1
                     # print('index:  ' + str(idx) + '     correct_label: ' + str(row) + '     prediction: ' + str(col) +
-                    #       '     x10_angularx10_angularx[' + str(row) + ', ' + str(col) + '] = ' + str(x10_angularx10_angularx[row, col]))
+                    #       '     confusion_matrix_37x37[' + str(row) + ', ' + str(col) + '] = ' + str(confusion_matrix_37x37[row, col]))
 
-                # print('truth: ' + str(truth) + '     prediction: ' + str(predictions))
+                    if col - 1 <= row <= col + 1:
+                        correct_in_range_one += 1
+
+                    if col - 2 <= row <= col + 2:
+                        correct_in_range_two += 1
+
+                    if col - 3 <= row <= col + 3:
+                        correct_in_range_three += 1
+
+                    if col - 4 <= row <= col + 4:
+                        correct_in_range_four += 1
+
+                    if col - 5 <= row <= col + 5:
+                        correct_in_range_five += 1
 
                 correct_prediction += np.sum(truth == predictions)
                 total_prediction += predictions.shape[0]
-                # total_top_5 += top_5
 
             # *********************************
             # confusion matrix #################
             # *********************************
-            # for row in range(10):
+            # for row in range(37):
             #     print('---------------')
             #     print('mode : ' + str(row))
             #     print('----------')
-            #     for col in range(10):
-            #         if x10_angularx10_angularx[row, col] != 0.0:
+            #     for col in range(37):
+            #         if confusion_matrix_37x37[row, col] != 0.0:
             #             print('mode: ' + str(row) + ' --->    number of predictions in mode ' + str(col) + ' :  ' + str(
-            #                 x10_angularx10_angularx[row, col]))
-            #
-            # np.savetxt("/Users/Pharrell_WANG/PycharmProjects/resnet_vcmd_model_X/classification_distribution"
-            #            "/cifar_10x10__ " + str(ckpt_state.model_checkpoint_path)[-10:] + ".csv", x10_angularx10_angularx, fmt='%i',
-            #            delimiter=",")
+            #                 confusion_matrix_37x37[row, col]))
+
+            np.savetxt(
+                "/Users/Pharrell_WANG/workspace/models/resnet/confusion_matrix/"
+                + str(ckpt_state.model_checkpoint_path)[-10:] + ".csv",
+                confusion_matrix_37x37, fmt='%i',
+                delimiter=",")
             # confusion matrix #################
             precision = 1.0 * correct_prediction / total_prediction
             best_precision = max(precision, best_precision)
+
+            precision_in_range_one = 1.0 * correct_in_range_one / total_prediction
+            precision_in_range_two = 1.0 * correct_in_range_two / total_prediction
+            precision_in_range_three = 1.0 * correct_in_range_three / total_prediction
+            precision_in_range_four = 1.0 * correct_in_range_four / total_prediction
+            precision_in_range_five = 1.0 * correct_in_range_five / total_prediction
+
             # avg_top_5 = total_top_5 / FLAGS.eval_batch_count
-            top_5 = 1.0 * correct_top_5_prediction / correct_top_5_prediction_total
-            top_8 = 1.0 * correct_top_8_prediction / correct_top_8_prediction_total
-            top_12 = 1.0 * correct_top_12_prediction / correct_top_12_prediction_total
-            top_16 = 1.0 * correct_top_16_prediction / correct_top_16_prediction_total
+            top_5 = 1.0 * correct_top_5_prediction / top_5_prediction_total
+            top_8 = 1.0 * correct_top_8_prediction / top_8_prediction_total
+            top_12 = 1.0 * correct_top_12_prediction / top_12_prediction_total
+            top_16 = 1.0 * correct_top_16_prediction / top_16_prediction_total
+            top_24 = 1.0 * correct_top_24_prediction / top_24_prediction_total
+            top_28 = 1.0 * correct_top_28_prediction / top_28_prediction_total
+
+            dmm_skipped_percent_for_top_5 = 1.0 * dmms_not_in_top_5 / top_5_prediction_total
+            dmm_skipped_percent_for_top_8 = 1.0 * dmms_not_in_top_8 / top_8_prediction_total
+            dmm_skipped_percent_for_top_12 = 1.0 * dmms_not_in_top_12 / top_12_prediction_total
+            dmm_skipped_percent_for_top_16 = 1.0 * dmms_not_in_top_16 / top_16_prediction_total
+            dmm_skipped_percent_for_top_24 = 1.0 * dmms_not_in_top_24 / top_24_prediction_total
+            dmm_skipped_percent_for_top_28 = 1.0 * dmms_not_in_top_28 / top_28_prediction_total
 
             top_5_summ = tf.Summary()
             top_5_summ.value.add(
@@ -293,6 +319,16 @@ def evaluate(hps):
                 tag='top_16', simple_value=top_16)
             summary_writer.add_summary(top_16_summ, train_step)
 
+            top_24_summ = tf.Summary()
+            top_24_summ.value.add(
+                tag='top_24', simple_value=top_24)
+            summary_writer.add_summary(top_24_summ, train_step)
+
+            top_28_summ = tf.Summary()
+            top_28_summ.value.add(
+                tag='top_28', simple_value=top_28)
+            summary_writer.add_summary(top_28_summ, train_step)
+
             precision_summ = tf.Summary()
             precision_summ.value.add(
                 tag='Precision', simple_value=precision)
@@ -304,8 +340,25 @@ def evaluate(hps):
             summary_writer.add_summary(best_precision_summ, train_step)
             summary_writer.add_summary(summaries, train_step)
             tf.logging.info(
-                'loss: %.3f, precision: %.3f, best precision: %.3f, top_5: %.3f, top_8: %.3f, top_12: %.3f, top_16: %.3f' %
-                (loss, precision, best_precision, top_5, top_8, top_12, top_16))
+                'loss: %.3f, precision: %.3f, best precision: %.3f, top_5: %.3f, top_8: %.3f, top_12: %.3f, top_16: %.3f, top_24: %.3f, top_28: %.3f' %
+                (loss, precision, best_precision, top_5, top_8, top_12, top_16,
+                 top_24, top_28))
+            # 'rg' means 'precision in range ...'
+            # 'rg_1' in range +1 or -1
+            tf.logging.info(
+                'rg_1: %.3f, rg_2: %.3f, rg_3: %.3f, rg_4: %.3f, rg_5: %.3f' %
+                (precision_in_range_one, precision_in_range_two,
+                 precision_in_range_three, precision_in_range_four,
+                 precision_in_range_five))
+
+            tf.logging.info(
+                'DMM skipped percent-->>>>> for top_5: %.3f, top_8: %.3f, top_12: %.3f, top_16: %.3f, top_24: %.3f, top_28: %.3f' %
+                (dmm_skipped_percent_for_top_5,
+                 dmm_skipped_percent_for_top_8,
+                 dmm_skipped_percent_for_top_12,
+                 dmm_skipped_percent_for_top_16,
+                 dmm_skipped_percent_for_top_24,
+                 dmm_skipped_percent_for_top_28))
             # tf.logging.info(
             #     'loss: %.3f, precision: %.3f, best precision: %.3f' %
             #     (loss, precision, best_precision))
@@ -319,21 +372,19 @@ def evaluate(hps):
             if FLAGS.eval_once:
                 break
 
-            time.sleep(300)
+            time.sleep(180)
 
 
 def main(_):
-    # if FLAGS.num_gpus == 0:
-    #     dev = '/cpu:0'
-    # elif FLAGS.num_gpus == 1:
-    #     dev = '/gpu:0'
-    # else:
-    #     raise ValueError('Only support 0 or 1 gpu.')
+    # batch_size = 0
+    # num_classes = 0
 
     if FLAGS.mode == 'train':
         batch_size = 128
     elif FLAGS.mode == 'eval':
         batch_size = 100
+    else:
+        raise ValueError('Only support two modes: train or eval')
 
     if FLAGS.dataset == 'cifar10':
         num_classes = 10
@@ -341,6 +392,9 @@ def main(_):
         num_classes = 100
     elif FLAGS.dataset == 'fdc':
         num_classes = 37
+    else:
+        raise ValueError(
+            'Only support three datasets: cifar10, cifar100 or fdc')
 
     hps = resnet_model.HParams(dataset_name=FLAGS.dataset,
                                batch_size=batch_size,
