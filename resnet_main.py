@@ -179,159 +179,163 @@ def evaluate(hps):
             summaries = 0  # for eliminating IDE warning
 
             start = time.time()
-            confusion_matrix_37x37 = np.zeros((37, 37))
+            confusion_matrix_2x2 = np.zeros((2, 2))
             # noinspection PyUnresolvedReferences
-            for _ in six.moves.range(FLAGS.eval_batch_count):
+            for batch_number in six.moves.range(FLAGS.eval_batch_count):
+                sys.stdout.write(
+                    '\r>> evaluating batch %d/%d' % (batch_number + 1, FLAGS.eval_batch_count))
+
                 (summaries, loss, predictions, truth, train_step) = sess.run(
                     [model.summaries, model.cost, model.predictions,
                      model.labels, model.global_step])
                 truth = np.argmax(truth, axis=1)
 
-                for idx in range(hps.batch_size):
-                    row = truth[idx]
-                    col = predictions[idx]
+                # for idx in range(hps.batch_size):
+                #     row = truth[idx]
+                #     col = predictions[idx]
 
-                    for_top_5 = col.argsort()[-5:][::-1]
-                    for_top_8 = col.argsort()[-8:][::-1]
-                    for_top_12 = col.argsort()[-12:][::-1]
-                    for_top_16 = col.argsort()[-16:][::-1]
-                    for_top_24 = col.argsort()[-24:][::-1]
-                    for_top_28 = col.argsort()[-28:][::-1]
-                    if row in for_top_5:
-                        correct_top_5_prediction += 1
-                    top_5_prediction_total += 1
-
-                    if row in for_top_8:
-                        correct_top_8_prediction += 1
-                    top_8_prediction_total += 1
-
-                    if row in for_top_12:
-                        correct_top_12_prediction += 1
-                    top_12_prediction_total += 1
-
-                    if row in for_top_16:
-                        correct_top_16_prediction += 1
-                    top_16_prediction_total += 1
-
-                    if row in for_top_24:
-                        correct_top_24_prediction += 1
-                    top_24_prediction_total += 1
-
-                    if row in for_top_28:
-                        correct_top_28_prediction += 1
-                    top_28_prediction_total += 1
-
-                    if 35 not in for_top_5 and 36 not in for_top_5:
-                        dmms_not_in_top_5 += 1
-                    if 35 not in for_top_8 and 36 not in for_top_8:
-                        dmms_not_in_top_8 += 1
-                    if 35 not in for_top_12 and 36 not in for_top_12:
-                        dmms_not_in_top_12 += 1
-                    if 35 not in for_top_16 and 36 not in for_top_16:
-                        dmms_not_in_top_16 += 1
-                    if 35 not in for_top_24 and 36 not in for_top_24:
-                        dmms_not_in_top_24 += 1
-                    if 35 not in for_top_28 and 36 not in for_top_28:
-                        dmms_not_in_top_28 += 1
+                    # for_top_5 = col.argsort()[-5:][::-1]
+                    # for_top_8 = col.argsort()[-8:][::-1]
+                    # for_top_12 = col.argsort()[-12:][::-1]
+                    # for_top_16 = col.argsort()[-16:][::-1]
+                    # for_top_24 = col.argsort()[-24:][::-1]
+                    # for_top_28 = col.argsort()[-28:][::-1]
+                    # if row in for_top_5:
+                    #     correct_top_5_prediction += 1
+                    # top_5_prediction_total += 1
+                    #
+                    # if row in for_top_8:
+                    #     correct_top_8_prediction += 1
+                    # top_8_prediction_total += 1
+                    #
+                    # if row in for_top_12:
+                    #     correct_top_12_prediction += 1
+                    # top_12_prediction_total += 1
+                    #
+                    # if row in for_top_16:
+                    #     correct_top_16_prediction += 1
+                    # top_16_prediction_total += 1
+                    #
+                    # if row in for_top_24:
+                    #     correct_top_24_prediction += 1
+                    # top_24_prediction_total += 1
+                    #
+                    # if row in for_top_28:
+                    #     correct_top_28_prediction += 1
+                    # top_28_prediction_total += 1
+                    #
+                    # if 35 not in for_top_5 and 36 not in for_top_5:
+                    #     dmms_not_in_top_5 += 1
+                    # if 35 not in for_top_8 and 36 not in for_top_8:
+                    #     dmms_not_in_top_8 += 1
+                    # if 35 not in for_top_12 and 36 not in for_top_12:
+                    #     dmms_not_in_top_12 += 1
+                    # if 35 not in for_top_16 and 36 not in for_top_16:
+                    #     dmms_not_in_top_16 += 1
+                    # if 35 not in for_top_24 and 36 not in for_top_24:
+                    #     dmms_not_in_top_24 += 1
+                    # if 35 not in for_top_28 and 36 not in for_top_28:
+                    #     dmms_not_in_top_28 += 1
 
                 predictions = np.argmax(predictions, axis=1)
                 for idx in range(hps.batch_size):
                     row = truth[idx]
                     col = predictions[idx]
-                    confusion_matrix_37x37[row, col] += 1
+                    confusion_matrix_2x2[row, col] += 1
                     # print('index:  ' + str(idx) + '     correct_label: ' + str(row) + '     prediction: ' + str(col) +
-                    #       '     confusion_matrix_37x37[' + str(row) + ', ' + str(col) + '] = ' + str(confusion_matrix_37x37[row, col]))
+                    #       '     confusion_matrix_2x2[' + str(row) + ', ' + str(col) + '] = ' + str(confusion_matrix_2x2[row, col]))
 
-                    if col - 1 <= row <= col + 1:
-                        correct_in_range_one += 1
-
-                    if col - 2 <= row <= col + 2:
-                        correct_in_range_two += 1
-
-                    if col - 3 <= row <= col + 3:
-                        correct_in_range_three += 1
-
-                    if col - 4 <= row <= col + 4:
-                        correct_in_range_four += 1
-
-                    if col - 5 <= row <= col + 5:
-                        correct_in_range_five += 1
+                    # if col - 1 <= row <= col + 1:
+                    #     correct_in_range_one += 1
+                    #
+                    # if col - 2 <= row <= col + 2:
+                    #     correct_in_range_two += 1
+                    #
+                    # if col - 3 <= row <= col + 3:
+                    #     correct_in_range_three += 1
+                    #
+                    # if col - 4 <= row <= col + 4:
+                    #     correct_in_range_four += 1
+                    #
+                    # if col - 5 <= row <= col + 5:
+                    #     correct_in_range_five += 1
 
                 correct_prediction += np.sum(truth == predictions)
                 total_prediction += predictions.shape[0]
+            sys.stdout.flush()
 
             # *********************************
             # confusion matrix #################
             # *********************************
-            # for row in range(37):
+            # for row in range(2):
             #     print('---------------')
             #     print('mode : ' + str(row))
             #     print('----------')
-            #     for col in range(37):
-            #         if confusion_matrix_37x37[row, col] != 0.0:
+            #     for col in range(2):
+            #         if confusion_matrix_2x2[row, col] != 0.0:
             #             print('mode: ' + str(row) + ' --->    number of predictions in mode ' + str(col) + ' :  ' + str(
-            #                 confusion_matrix_37x37[row, col]))
+            #                 confusion_matrix_2x2[row, col]))
 
             np.savetxt(
                 "/Users/Pharrell_WANG/workspace/models/resnet/confusion_matrix/"
                 + str(ckpt_state.model_checkpoint_path)[-10:] + ".csv",
-                confusion_matrix_37x37, fmt='%i',
+                confusion_matrix_2x2, fmt='%i',
                 delimiter=",")
             # confusion matrix #################
             precision = 1.0 * correct_prediction / total_prediction
             best_precision = max(precision, best_precision)
 
-            precision_in_range_one = 1.0 * correct_in_range_one / total_prediction
-            precision_in_range_two = 1.0 * correct_in_range_two / total_prediction
-            precision_in_range_three = 1.0 * correct_in_range_three / total_prediction
-            precision_in_range_four = 1.0 * correct_in_range_four / total_prediction
-            precision_in_range_five = 1.0 * correct_in_range_five / total_prediction
-
+            # precision_in_range_one = 1.0 * correct_in_range_one / total_prediction
+            # precision_in_range_two = 1.0 * correct_in_range_two / total_prediction
+            # precision_in_range_three = 1.0 * correct_in_range_three / total_prediction
+            # precision_in_range_four = 1.0 * correct_in_range_four / total_prediction
+            # precision_in_range_five = 1.0 * correct_in_range_five / total_prediction
+            #
             # avg_top_5 = total_top_5 / FLAGS.eval_batch_count
-            top_5 = 1.0 * correct_top_5_prediction / top_5_prediction_total
-            top_8 = 1.0 * correct_top_8_prediction / top_8_prediction_total
-            top_12 = 1.0 * correct_top_12_prediction / top_12_prediction_total
-            top_16 = 1.0 * correct_top_16_prediction / top_16_prediction_total
-            top_24 = 1.0 * correct_top_24_prediction / top_24_prediction_total
-            top_28 = 1.0 * correct_top_28_prediction / top_28_prediction_total
+            # top_5 = 1.0 * correct_top_5_prediction / top_5_prediction_total
+            # top_8 = 1.0 * correct_top_8_prediction / top_8_prediction_total
+            # top_12 = 1.0 * correct_top_12_prediction / top_12_prediction_total
+            # top_16 = 1.0 * correct_top_16_prediction / top_16_prediction_total
+            # top_24 = 1.0 * correct_top_24_prediction / top_24_prediction_total
+            # top_28 = 1.0 * correct_top_28_prediction / top_28_prediction_total
 
-            dmm_skipped_percent_for_top_5 = 1.0 * dmms_not_in_top_5 / top_5_prediction_total
-            dmm_skipped_percent_for_top_8 = 1.0 * dmms_not_in_top_8 / top_8_prediction_total
-            dmm_skipped_percent_for_top_12 = 1.0 * dmms_not_in_top_12 / top_12_prediction_total
-            dmm_skipped_percent_for_top_16 = 1.0 * dmms_not_in_top_16 / top_16_prediction_total
-            dmm_skipped_percent_for_top_24 = 1.0 * dmms_not_in_top_24 / top_24_prediction_total
-            dmm_skipped_percent_for_top_28 = 1.0 * dmms_not_in_top_28 / top_28_prediction_total
+            # dmm_skipped_percent_for_top_5 = 1.0 * dmms_not_in_top_5 / top_5_prediction_total
+            # dmm_skipped_percent_for_top_8 = 1.0 * dmms_not_in_top_8 / top_8_prediction_total
+            # dmm_skipped_percent_for_top_12 = 1.0 * dmms_not_in_top_12 / top_12_prediction_total
+            # dmm_skipped_percent_for_top_16 = 1.0 * dmms_not_in_top_16 / top_16_prediction_total
+            # dmm_skipped_percent_for_top_24 = 1.0 * dmms_not_in_top_24 / top_24_prediction_total
+            # dmm_skipped_percent_for_top_28 = 1.0 * dmms_not_in_top_28 / top_28_prediction_total
 
-            top_5_summ = tf.Summary()
-            top_5_summ.value.add(
-                tag='top_5', simple_value=top_5)
-            summary_writer.add_summary(top_5_summ, train_step)
-
-            top_8_summ = tf.Summary()
-            top_8_summ.value.add(
-                tag='top_8', simple_value=top_8)
-            summary_writer.add_summary(top_8_summ, train_step)
-
-            top_12_summ = tf.Summary()
-            top_12_summ.value.add(
-                tag='top_12', simple_value=top_12)
-            summary_writer.add_summary(top_12_summ, train_step)
-
-            top_16_summ = tf.Summary()
-            top_16_summ.value.add(
-                tag='top_16', simple_value=top_16)
-            summary_writer.add_summary(top_16_summ, train_step)
-
-            top_24_summ = tf.Summary()
-            top_24_summ.value.add(
-                tag='top_24', simple_value=top_24)
-            summary_writer.add_summary(top_24_summ, train_step)
-
-            top_28_summ = tf.Summary()
-            top_28_summ.value.add(
-                tag='top_28', simple_value=top_28)
-            summary_writer.add_summary(top_28_summ, train_step)
-
+            # top_5_summ = tf.Summary()
+            # top_5_summ.value.add(
+            #     tag='top_5', simple_value=top_5)
+            # summary_writer.add_summary(top_5_summ, train_step)
+            #
+            # top_8_summ = tf.Summary()
+            # top_8_summ.value.add(
+            #     tag='top_8', simple_value=top_8)
+            # summary_writer.add_summary(top_8_summ, train_step)
+            #
+            # top_12_summ = tf.Summary()
+            # top_12_summ.value.add(
+            #     tag='top_12', simple_value=top_12)
+            # summary_writer.add_summary(top_12_summ, train_step)
+            #
+            # top_16_summ = tf.Summary()
+            # top_16_summ.value.add(
+            #     tag='top_16', simple_value=top_16)
+            # summary_writer.add_summary(top_16_summ, train_step)
+            #
+            # top_24_summ = tf.Summary()
+            # top_24_summ.value.add(
+            #     tag='top_24', simple_value=top_24)
+            # summary_writer.add_summary(top_24_summ, train_step)
+            #
+            # top_28_summ = tf.Summary()
+            # top_28_summ.value.add(
+            #     tag='top_28', simple_value=top_28)
+            # summary_writer.add_summary(top_28_summ, train_step)
+            #
             precision_summ = tf.Summary()
             precision_summ.value.add(
                 tag='Precision', simple_value=precision)
@@ -342,26 +346,26 @@ def evaluate(hps):
                 tag='Best Precision', simple_value=best_precision)
             summary_writer.add_summary(best_precision_summ, train_step)
             summary_writer.add_summary(summaries, train_step)
-            tf.logging.info(
-                'loss: %.3f, precision: %.3f, best precision: %.3f, top_5: %.3f, top_8: %.3f, top_12: %.3f, top_16: %.3f, top_24: %.3f, top_28: %.3f' %
-                (loss, precision, best_precision, top_5, top_8, top_12, top_16,
-                 top_24, top_28))
+            # tf.logging.info(
+            #     'loss: %.3f, precision: %.3f, best precision: %.3f, top_5: %.3f, top_8: %.3f, top_12: %.3f, top_16: %.3f, top_24: %.3f, top_28: %.3f' %
+            #     (loss, precision, best_precision, top_5, top_8, top_12, top_16,
+            #      top_24, top_28))
             # 'rg' means 'precision in range ...'
             # 'rg_1' in range +1 or -1
-            tf.logging.info(
-                'rg_1: %.3f, rg_2: %.3f, rg_3: %.3f, rg_4: %.3f, rg_5: %.3f' %
-                (precision_in_range_one, precision_in_range_two,
-                 precision_in_range_three, precision_in_range_four,
-                 precision_in_range_five))
+            # tf.logging.info(
+            #     'rg_1: %.3f, rg_2: %.3f, rg_3: %.3f, rg_4: %.3f, rg_5: %.3f' %
+            #     (precision_in_range_one, precision_in_range_two,
+            #      precision_in_range_three, precision_in_range_four,
+            #      precision_in_range_five))
 
-            tf.logging.info(
-                'DMM skipped percent-->>>>> for top_5: %.3f, top_8: %.3f, top_12: %.3f, top_16: %.3f, top_24: %.3f, top_28: %.3f' %
-                (dmm_skipped_percent_for_top_5,
-                 dmm_skipped_percent_for_top_8,
-                 dmm_skipped_percent_for_top_12,
-                 dmm_skipped_percent_for_top_16,
-                 dmm_skipped_percent_for_top_24,
-                 dmm_skipped_percent_for_top_28))
+            # tf.logging.info(
+            #     'DMM skipped percent-->>>>> for top_5: %.3f, top_8: %.3f, top_12: %.3f, top_16: %.3f, top_24: %.3f, top_28: %.3f' %
+            #     (dmm_skipped_percent_for_top_5,
+            #      dmm_skipped_percent_for_top_8,
+            #      dmm_skipped_percent_for_top_12,
+            #      dmm_skipped_percent_for_top_16,
+            #      dmm_skipped_percent_for_top_24,
+            #      dmm_skipped_percent_for_top_28))
             # tf.logging.info(
             #     'loss: %.3f, precision: %.3f, best precision: %.3f' %
             #     (loss, precision, best_precision))
@@ -394,7 +398,7 @@ def main(_):
     elif FLAGS.dataset == 'cifar100':
         num_classes = 100
     elif FLAGS.dataset == 'fdc':
-        num_classes = 37
+        num_classes = 2
     else:
         raise ValueError(
             'Only support three datasets: cifar10, cifar100 or fdc')
