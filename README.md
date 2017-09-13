@@ -1,7 +1,22 @@
-<font size=4><b>Reproduced ResNet on CIFAR-10 and CIFAR-100 dataset.</b></font>
+<font size=4><b>Reproduced ResNet on CIFAR-10 and CIFAR-100 dataset, adapted for intra angular prediction(applicable to DMM1)</b></font>
 
-##### This project is originated from tensorflow model zoo. Pharrell Adapted the resnet for fast mode decision.
-Original Author: panyx0718 (xpan@google.com)
+# Quick Memo
+
+## Fast intra angular Prediction (applicable to DMM1)
+
+##### step 1: Build the binary
+
+    $ bazel build -c opt --config=cuda resnet/...
+
+##### step 2: fdc training
+
+    $ bazel-bin/resnet/resnet_main --train_data_path='/Users/Pharrell_WANG/data/smooth_removed/data/train_08x08.csv' --log_root='/Users/Pharrell_WANG/workspace/models/resnet/log' --train_dir='/Users/Pharrell_WANG/workspace/models/resnet/log/train' --dataset='fdc' --num_gpus=1
+
+                              
+##### step 3: fdc evaluating
+
+    $ bazel-bin/resnet/resnet_main --eval_data_path='/Users/Pharrell_WANG/data/smooth_removed/data/test_08x08.csv' --log_root="/Users/Pharrell_WANG/workspace/models/resnet/log" --eval_dir='/Users/Pharrell_WANG/workspace/models/resnet/log/eval' --mode=eval --dataset='fdc' --num_gpus=0
+         
 
 <b>Related papers:</b>
 
@@ -98,15 +113,4 @@ $ bazel-bin/resnet/resnet_main --eval_data_path=cifar10/test_batch.bin \
                                --mode=eval \
                                --dataset='cifar10' \
                                --num_gpus=0
-                               
-# ************************************
-# For fdc training:
-
-$ bazel-bin/resnet/resnet_main --train_data_path='/Users/Pharrell_WANG/data/smooth_removed/data/train_08x08.csv' --log_root='/Users/Pharrell_WANG/workspace/models/resnet/log' --train_dir='/Users/Pharrell_WANG/workspace/models/resnet/log/train' --dataset='fdc' --num_gpus=1
-
-                              
-# ************************************
-# For fdc evaluating:
-
-$ bazel-bin/resnet/resnet_main --eval_data_path='/Users/Pharrell_WANG/data/smooth_removed/data/test_08x08.csv' --log_root="/Users/Pharrell_WANG/workspace/models/resnet/log" --eval_dir='/Users/Pharrell_WANG/workspace/models/resnet/log/eval' --mode=eval --dataset='fdc' --num_gpus=0                                        
 ```
