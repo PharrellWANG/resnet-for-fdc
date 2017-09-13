@@ -102,11 +102,11 @@ $ bazel-bin/resnet/resnet_main --eval_data_path=cifar10/test_batch.bin \
 # ************************************
 # For fdc training:
 
-$ bazel-bin/resnet/resnet_main --train_data_path='/Users/Pharrell_WANG/data/step3_output/32x32/data_for_training/train_32x32.csv' --log_root='/Users/Pharrell_WANG/workspace/models/resnet/log' --train_dir='/Users/Pharrell_WANG/workspace/models/resnet/log/train' --dataset='fdc' --num_gpus=1
+$ bazel-bin/resnet/resnet_main --train_data_path='/Users/Pharrell_WANG/data/smooth_removed/data/train_08x08.csv' --log_root='/Users/Pharrell_WANG/workspace/models/resnet/log' --train_dir='/Users/Pharrell_WANG/workspace/models/resnet/log/train' --dataset='fdc' --num_gpus=1
 
                               
 # ************************************
 # For fdc evaluating:
 
-$ bazel-bin/resnet/resnet_main --eval_data_path='/Users/Pharrell_WANG/data/step3_output/32x32/data_for_validating/validate_32x32.csv' --log_root="/Users/Pharrell_WANG/workspace/models/resnet/log" --eval_dir='/Users/Pharrell_WANG/workspace/models/resnet/log/eval' --mode=eval --dataset='fdc' --num_gpus=0                                        
+$ bazel-bin/resnet/resnet_main --eval_data_path='/Users/Pharrell_WANG/data/smooth_removed/data/test_08x08.csv' --log_root="/Users/Pharrell_WANG/workspace/models/resnet/log" --eval_dir='/Users/Pharrell_WANG/workspace/models/resnet/log/eval' --mode=eval --dataset='fdc' --num_gpus=0                                        
 ```

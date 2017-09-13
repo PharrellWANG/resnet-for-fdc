@@ -38,7 +38,7 @@ def build_input(dataset, data_path, batch_size, mode, block_size):
         # blk_size default is 32
         # for convention, still use image_size as name
         image_size = block_size
-        num_classes = 37
+        num_classes = 28
         depth = 1
 
         filename_queue = tf.train.string_input_producer([data_path])
