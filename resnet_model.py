@@ -70,6 +70,7 @@ class ResNet(object):
         with tf.variable_scope('init'):
             x = self._images
             if self.hps.dataset_name == 'fdc':
+                # name of input layer: "init/fdc_input_node"
                 x = self._conv('fdc_input_node', x, 3, 1, 16, self._stride_arr(1))
             else:
                 x = self._conv('init_conv', x, 3, 3, 16, self._stride_arr(1))
@@ -124,6 +125,7 @@ class ResNet(object):
 
         with tf.variable_scope('logits'):
             logits = self._fully_connected(x, self.hps.num_classes)
+            # name of output layer: "init/fdc_output_node"
             self.predictions = tf.nn.softmax(logits, name='fdc_output_node')
 
         with tf.variable_scope('costs'):
