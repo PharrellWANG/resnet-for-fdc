@@ -122,9 +122,9 @@ class ResNet(object):
             x = self._relu(x, self.hps.relu_leakiness)
             x = self._global_avg_pool(x)
 
-        with tf.variable_scope('logit'):
+        with tf.variable_scope('logits'):
             logits = self._fully_connected(x, self.hps.num_classes)
-            self.predictions = tf.nn.softmax(logits)
+            self.predictions = tf.nn.softmax(logits, name='output_node')
 
         with tf.variable_scope('costs'):
             xent = tf.nn.softmax_cross_entropy_with_logits(
