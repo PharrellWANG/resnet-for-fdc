@@ -70,7 +70,7 @@ class ResNet(object):
         with tf.variable_scope('init'):
             x = self._images
             if self.hps.dataset_name == 'fdc':
-                x = self._conv('init_conv', x, 3, 1, 16, self._stride_arr(1))
+                x = self._conv('fdc_input_node', x, 3, 1, 16, self._stride_arr(1))
             else:
                 x = self._conv('init_conv', x, 3, 3, 16, self._stride_arr(1))
 
@@ -87,7 +87,7 @@ class ResNet(object):
             # comparably good performance.
             # https://arxiv.org/pdf/1605.07146v1.pdf
             # filters = [16, 160, 320, 640]
-            filters = [16, 80, 160, 320]  # pharrell
+            filters = [16, 120, 240, 480]  # pharrell
             # Update hps.num_residual_units to 4
 
         with tf.variable_scope('unit_1_0'):
@@ -124,7 +124,7 @@ class ResNet(object):
 
         with tf.variable_scope('logits'):
             logits = self._fully_connected(x, self.hps.num_classes)
-            self.predictions = tf.nn.softmax(logits, name='output_node')
+            self.predictions = tf.nn.softmax(logits, name='fdc_output_node')
 
         with tf.variable_scope('costs'):
             xent = tf.nn.softmax_cross_entropy_with_logits(
