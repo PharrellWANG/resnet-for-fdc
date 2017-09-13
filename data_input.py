@@ -19,7 +19,7 @@
 import tensorflow as tf
 
 
-def build_input(dataset, data_path, batch_size, mode, block_size):
+def build_input(dataset, data_path, batch_size, mode, block_size, num_of_classes):
     """Build CIFAR image and labels.
 
     Args:
@@ -28,6 +28,7 @@ def build_input(dataset, data_path, batch_size, mode, block_size):
       batch_size: Input batch size.
       mode: Either 'train' or 'eval'.
       block_size: this is only for fdc. can be 8, 16, 32 or 64, default 32
+      num_of_classes: number_of_classes to classify
     Returns:
       images: Batches of images. [batch_size, image_size, image_size, 3]
       labels: Batches of labels. [batch_size, num_classes]
@@ -38,7 +39,7 @@ def build_input(dataset, data_path, batch_size, mode, block_size):
         # blk_size default is 32
         # for convention, still use image_size as name
         image_size = block_size
-        num_classes = 28
+        num_classes = num_of_classes
         depth = 1
 
         filename_queue = tf.train.string_input_producer([data_path])
