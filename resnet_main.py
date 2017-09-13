@@ -26,7 +26,7 @@ tf.app.flags.DEFINE_integer('eval_batch_count', 270,
 tf.app.flags.DEFINE_integer('eval_batch_size', 100,
 														'Number of samples in a single batch to eval.')
 
-tf.app.flags.DEFINE_integer('train_batch_size', 128,
+tf.app.flags.DEFINE_integer('train_batch_size', 64,
 														'Number of samples in a single batch to train.')
 
 tf.app.flags.DEFINE_bool('eval_once', False,
@@ -40,6 +40,8 @@ tf.app.flags.DEFINE_integer('block_size', 8,
 tf.app.flags.DEFINE_integer('target_classes', 28, 'classes for fdc')
 tf.app.flags.DEFINE_bool('DMM_included', False,
 												 'is DMM included in the target classes')
+tf.app.flags.DEFINE_bool('sleep_time', 480,
+												 'duration between tests, time in seconds')
 
 
 def train(hps):
@@ -47,7 +49,7 @@ def train(hps):
 	with tf.device('/cpu:0'):
 		images, labels = data_input.build_input(
 			FLAGS.dataset, FLAGS.train_data_path, hps.batch_size, FLAGS.mode,
-			FLAGS.block_size)
+			FLAGS.block_size, FLAGS.target_classes)
 	
 	with tf.device('/gpu:0'):
 		model = resnet_model.ResNet(hps, images, labels, FLAGS.mode)
@@ -101,18 +103,14 @@ def train(hps):
 			
 			def after_run(self, run_context, run_values):
 				train_step = run_values.results
-				if train_step < 10000:
+				if train_step < 40000:
 					self._lrn_rate = 0.1
-				elif train_step < 20000:
+				elif train_step < 60000:
 					self._lrn_rate = 0.01
-				elif train_step < 40000:
-					self._lrn_rate = 0.001
-				elif train_step < 80000:
-					self._lrn_rate = 0.0001
 				elif train_step < 100000:
-					self._lrn_rate = 0.00005
+					self._lrn_rate = 0.001
 				else:
-					self._lrn_rate = 0.00001
+					self._lrn_rate = 0.0001
 		
 		with tf.train.MonitoredTrainingSession(
 			checkpoint_dir=FLAGS.log_root,
@@ -131,7 +129,7 @@ def evaluate(hps):
 	with tf.device('/cpu:0'):
 		images, labels = data_input.build_input(
 			FLAGS.dataset, FLAGS.eval_data_path, hps.batch_size, FLAGS.mode,
-			FLAGS.block_size)
+			FLAGS.block_size, FLAGS.target_classes)
 		model = resnet_model.ResNet(hps, images, labels, FLAGS.mode)
 		model.build_graph()
 		saver = tf.train.Saver()
@@ -161,30 +159,22 @@ def evaluate(hps):
 			total_top_5, total_prediction, correct_prediction = 0, 0, 0
 			correct_top_5_prediction = 0
 			top_5_prediction_total = 0
+			correct_top_6_prediction = 0
+			top_6_prediction_total = 0
+			correct_top_7_prediction = 0
+			top_7_prediction_total = 0
 			correct_top_8_prediction = 0
 			top_8_prediction_total = 0
+			correct_top_9_prediction = 0
+			top_9_prediction_total = 0
+			correct_top_10_prediction = 0
+			top_10_prediction_total = 0
+			correct_top_11_prediction = 0
+			top_11_prediction_total = 0
 			correct_top_12_prediction = 0
 			top_12_prediction_total = 0
 			correct_top_16_prediction = 0
 			top_16_prediction_total = 0
-			correct_top_24_prediction = 0
-			top_24_prediction_total = 0
-			correct_top_28_prediction = 0
-			top_28_prediction_total = 0
-			
-			if FLAGS.DMM_included:
-				dmms_not_in_top_5 = 0
-				dmms_not_in_top_8 = 0
-				dmms_not_in_top_12 = 0
-				dmms_not_in_top_16 = 0
-				dmms_not_in_top_24 = 0
-				dmms_not_in_top_28 = 0
-			
-			correct_in_range_one = 0
-			correct_in_range_two = 0
-			correct_in_range_three = 0
-			correct_in_range_four = 0
-			correct_in_range_five = 0
 			
 			loss = 0  # for eliminating IDE warning
 			summaries = 0  # for eliminating IDE warning
@@ -209,18 +199,41 @@ def evaluate(hps):
 					col = predictions[idx]
 					
 					for_top_5 = col.argsort()[-5:][::-1]
+					for_top_6 = col.argsort()[-6:][::-1]
+					for_top_7 = col.argsort()[-7:][::-1]
 					for_top_8 = col.argsort()[-8:][::-1]
+					for_top_9 = col.argsort()[-9:][::-1]
+					for_top_10 = col.argsort()[-10:][::-1]
+					for_top_11 = col.argsort()[-11:][::-1]
 					for_top_12 = col.argsort()[-12:][::-1]
 					for_top_16 = col.argsort()[-16:][::-1]
-					for_top_24 = col.argsort()[-24:][::-1]
-					for_top_28 = col.argsort()[-28:][::-1]
 					if row in for_top_5:
 						correct_top_5_prediction += 1
 					top_5_prediction_total += 1
 					
+					if row in for_top_6:
+						correct_top_6_prediction += 1
+					top_6_prediction_total += 1
+					
+					if row in for_top_7:
+						correct_top_7_prediction += 1
+					top_7_prediction_total += 1
+					
 					if row in for_top_8:
 						correct_top_8_prediction += 1
 					top_8_prediction_total += 1
+					
+					if row in for_top_9:
+						correct_top_9_prediction += 1
+					top_9_prediction_total += 1
+					
+					if row in for_top_10:
+						correct_top_10_prediction += 1
+					top_10_prediction_total += 1
+					
+					if row in for_top_11:
+						correct_top_11_prediction += 1
+					top_11_prediction_total += 1
 					
 					if row in for_top_12:
 						correct_top_12_prediction += 1
@@ -229,57 +242,17 @@ def evaluate(hps):
 					if row in for_top_16:
 						correct_top_16_prediction += 1
 					top_16_prediction_total += 1
-					
-					if row in for_top_24:
-						correct_top_24_prediction += 1
-					top_24_prediction_total += 1
-					
-					if row in for_top_28:
-						correct_top_28_prediction += 1
-					top_28_prediction_total += 1
-					if FLAGS.DMM_included:
-						if 35 not in for_top_5 and 36 not in for_top_5:
-							dmms_not_in_top_5 += 1
-						if 35 not in for_top_8 and 36 not in for_top_8:
-							dmms_not_in_top_8 += 1
-						if 35 not in for_top_12 and 36 not in for_top_12:
-							dmms_not_in_top_12 += 1
-						if 35 not in for_top_16 and 36 not in for_top_16:
-							dmms_not_in_top_16 += 1
-						if 35 not in for_top_24 and 36 not in for_top_24:
-							dmms_not_in_top_24 += 1
-						if 35 not in for_top_28 and 36 not in for_top_28:
-							dmms_not_in_top_28 += 1
 				
 				predictions = np.argmax(predictions, axis=1)
 				for idx in range(hps.batch_size):
 					row = truth[idx]
 					col = predictions[idx]
 					confusion_matrix_8x8[row, col] += 1
-					# print('index:  ' + str(idx) + '     correct_label: ' + str(row) + '     prediction: ' + str(col) +
-					#       '     confusion_matrix_8x8[' + str(row) + ', ' + str(col) + '] = ' + str(confusion_matrix_8x8[row, col]))
-					
-					if col - 1 <= row <= col + 1:
-						correct_in_range_one += 1
-					
-					if col - 2 <= row <= col + 2:
-						correct_in_range_two += 1
-					
-					if col - 3 <= row <= col + 3:
-						correct_in_range_three += 1
-					
-					if col - 4 <= row <= col + 4:
-						correct_in_range_four += 1
-					
-					if col - 5 <= row <= col + 5:
-						correct_in_range_five += 1
 				
 				correct_prediction += np.sum(truth == predictions)
 				total_prediction += predictions.shape[0]
 			
-			# *********************************
 			# confusion matrix #################
-			# *********************************
 			# for row in range(FLAGS.target_classes):
 			#     print('---------------')
 			#     print('mode : ' + str(row))
@@ -298,36 +271,51 @@ def evaluate(hps):
 			precision = 1.0 * correct_prediction / total_prediction
 			best_precision = max(precision, best_precision)
 			
-			precision_in_range_one = 1.0 * correct_in_range_one / total_prediction
-			precision_in_range_two = 1.0 * correct_in_range_two / total_prediction
-			precision_in_range_three = 1.0 * correct_in_range_three / total_prediction
-			precision_in_range_four = 1.0 * correct_in_range_four / total_prediction
-			precision_in_range_five = 1.0 * correct_in_range_five / total_prediction
-			
 			# avg_top_5 = total_top_5 / FLAGS.eval_batch_count
 			top_5 = 1.0 * correct_top_5_prediction / top_5_prediction_total
+			top_6 = 1.0 * correct_top_6_prediction / top_6_prediction_total
+			top_7 = 1.0 * correct_top_7_prediction / top_7_prediction_total
 			top_8 = 1.0 * correct_top_8_prediction / top_8_prediction_total
+			top_9 = 1.0 * correct_top_9_prediction / top_9_prediction_total
+			top_10 = 1.0 * correct_top_10_prediction / top_10_prediction_total
+			top_11 = 1.0 * correct_top_11_prediction / top_11_prediction_total
 			top_12 = 1.0 * correct_top_12_prediction / top_12_prediction_total
 			top_16 = 1.0 * correct_top_16_prediction / top_16_prediction_total
-			top_24 = 1.0 * correct_top_24_prediction / top_24_prediction_total
-			top_28 = 1.0 * correct_top_28_prediction / top_28_prediction_total
-			if FLAGS.DMM_included:
-				dmm_skipped_percent_for_top_5 = 1.0 * dmms_not_in_top_5 / top_5_prediction_total
-				dmm_skipped_percent_for_top_8 = 1.0 * dmms_not_in_top_8 / top_8_prediction_total
-				dmm_skipped_percent_for_top_12 = 1.0 * dmms_not_in_top_12 / top_12_prediction_total
-				dmm_skipped_percent_for_top_16 = 1.0 * dmms_not_in_top_16 / top_16_prediction_total
-				dmm_skipped_percent_for_top_24 = 1.0 * dmms_not_in_top_24 / top_24_prediction_total
-				dmm_skipped_percent_for_top_28 = 1.0 * dmms_not_in_top_28 / top_28_prediction_total
 			
 			top_5_summ = tf.Summary()
 			top_5_summ.value.add(
 				tag='top_5', simple_value=top_5)
 			summary_writer.add_summary(top_5_summ, train_step)
 			
+			top_6_summ = tf.Summary()
+			top_6_summ.value.add(
+				tag='top_6', simple_value=top_6)
+			summary_writer.add_summary(top_6_summ, train_step)
+			
+			top_7_summ = tf.Summary()
+			top_7_summ.value.add(
+				tag='top_7', simple_value=top_7)
+			summary_writer.add_summary(top_7_summ, train_step)
+			
 			top_8_summ = tf.Summary()
 			top_8_summ.value.add(
 				tag='top_8', simple_value=top_8)
 			summary_writer.add_summary(top_8_summ, train_step)
+			
+			top_9_summ = tf.Summary()
+			top_9_summ.value.add(
+				tag='top_9', simple_value=top_9)
+			summary_writer.add_summary(top_9_summ, train_step)
+			
+			top_10_summ = tf.Summary()
+			top_10_summ.value.add(
+				tag='top_10', simple_value=top_10)
+			summary_writer.add_summary(top_10_summ, train_step)
+			
+			top_11_summ = tf.Summary()
+			top_11_summ.value.add(
+				tag='top_11', simple_value=top_11)
+			summary_writer.add_summary(top_11_summ, train_step)
 			
 			top_12_summ = tf.Summary()
 			top_12_summ.value.add(
@@ -338,16 +326,6 @@ def evaluate(hps):
 			top_16_summ.value.add(
 				tag='top_16', simple_value=top_16)
 			summary_writer.add_summary(top_16_summ, train_step)
-			
-			top_24_summ = tf.Summary()
-			top_24_summ.value.add(
-				tag='top_24', simple_value=top_24)
-			summary_writer.add_summary(top_24_summ, train_step)
-			
-			top_28_summ = tf.Summary()
-			top_28_summ.value.add(
-				tag='top_28', simple_value=top_28)
-			summary_writer.add_summary(top_28_summ, train_step)
 			
 			precision_summ = tf.Summary()
 			precision_summ.value.add(
@@ -360,31 +338,17 @@ def evaluate(hps):
 			summary_writer.add_summary(best_precision_summ, train_step)
 			summary_writer.add_summary(summaries, train_step)
 			tf.logging.info(
-				'loss: %.3f, precision: %.3f, best precision: %.3f, top_5: %.3f, top_8: %.3f, top_12: %.3f, top_16: %.3f, top_24: %.3f, top_28: %.3f' %
-				(loss, precision, best_precision, top_5, top_8, top_12, top_16,
-				 top_24, top_28))
-			# 'rg' means 'precision in range ...'
-			# 'rg_1' in range +1 or -1
-			tf.logging.info(
-				'rg_1: %.3f, rg_2: %.3f, rg_3: %.3f, rg_4: %.3f, rg_5: %.3f' %
-				(precision_in_range_one, precision_in_range_two,
-				 precision_in_range_three, precision_in_range_four,
-				 precision_in_range_five))
-			if FLAGS.DMM_included:
-				tf.logging.info(
-					'DMM skipped percent-->>>>> for top_5: %.3f, top_8: %.3f, top_12: %.3f, top_16: %.3f, top_24: %.3f, top_28: %.3f' %
-					(dmm_skipped_percent_for_top_5,
-					 dmm_skipped_percent_for_top_8,
-					 dmm_skipped_percent_for_top_12,
-					 dmm_skipped_percent_for_top_16,
-					 dmm_skipped_percent_for_top_24,
-					 dmm_skipped_percent_for_top_28))
-			# tf.logging.info(
-			#     'loss: %.3f, precision: %.3f, best precision: %.3f' %
-			#     (loss, precision, best_precision))
+				'loss: %.3f, precision: %.3f, best precision: %.3f, top_5: %.3f, '
+				'top_6: %.3f, top_7: %.3f, top_8: %.3f, top_9: %.3f, top_10: %.3f, '
+				'top_11: %.3f, top_12: %.3f, top_16: %.3f, ' %
+				(loss, precision, best_precision, top_5, top_6, top_7,
+				 top_8, top_9, top_10, top_11, top_12, top_16,
+				 ))
 			summary_writer.flush()
 			
 			elapsed_time = time.time() - start
+			print('total_time:')
+			print(elapsed_time)
 			print('total prediction: ' + str(total_prediction))
 			print('single time spent for each prediction: ' + str(
 				elapsed_time / float(total_prediction)))
@@ -392,7 +356,7 @@ def evaluate(hps):
 			if FLAGS.eval_once:
 				break
 			
-			time.sleep(360)
+			time.sleep(FLAGS.sleep_time)
 
 
 def main(_):

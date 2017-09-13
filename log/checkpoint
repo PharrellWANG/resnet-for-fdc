@@ -1,6 +1,0 @@
-model_checkpoint_path: "/Users/Pharrell_WANG/workspace/models/resnet/log/model.ckpt-105237"
-all_model_checkpoint_paths: "/Users/Pharrell_WANG/workspace/models/resnet/log/model.ckpt-85746"
-all_model_checkpoint_paths: "/Users/Pharrell_WANG/workspace/models/resnet/log/model.ckpt-90619"
-all_model_checkpoint_paths: "/Users/Pharrell_WANG/workspace/models/resnet/log/model.ckpt-95499"
-all_model_checkpoint_paths: "/Users/Pharrell_WANG/workspace/models/resnet/log/model.ckpt-100361"
-all_model_checkpoint_paths: "/Users/Pharrell_WANG/workspace/models/resnet/log/model.ckpt-105237"
