@@ -19,8 +19,16 @@ tf.app.flags.DEFINE_integer('image_size', 8, 'Image side length.')
 tf.app.flags.DEFINE_string('train_dir', '',
 													 'Directory to keep training outputs.')
 tf.app.flags.DEFINE_string('eval_dir', '', 'Directory to keep eval outputs.')
-tf.app.flags.DEFINE_integer('eval_batch_count', 200,
+
+tf.app.flags.DEFINE_integer('eval_batch_count', 270,
 														'Number of batches to eval.')
+
+tf.app.flags.DEFINE_integer('eval_batch_size', 100,
+														'Number of samples in a single batch to eval.')
+
+tf.app.flags.DEFINE_integer('train_batch_size', 128,
+														'Number of samples in a single batch to train.')
+
 tf.app.flags.DEFINE_bool('eval_once', False,
 												 'Whether evaluate the model only once.')
 tf.app.flags.DEFINE_string('log_root', '',
@@ -63,7 +71,7 @@ def train(hps):
 												 'fdc_resnet_graph.pb', False)
 		
 		summary_hook = tf.train.SummarySaverHook(
-			save_steps=50,
+			save_steps=10,
 			# save_secs=120,
 			output_dir=FLAGS.train_dir,
 			summary_op=tf.summary.merge([model.summaries,
@@ -181,7 +189,12 @@ def evaluate(hps):
 			confusion_matrix_8x8 = np.zeros(
 				(FLAGS.target_classes, FLAGS.target_classes))
 			# noinspection PyUnresolvedReferences
+			bc_cnt = 0
 			for _ in six.moves.range(FLAGS.eval_batch_count):
+				bc_cnt += 1
+				sys.stdout.write(
+					'\r>> processing batch: %d / %d' %
+					(bc_cnt, FLAGS.eval_batch_count))
 				(summaries, loss, predictions, truth, train_step) = sess.run(
 					[model.summaries, model.cost, model.predictions,
 					 model.labels, model.global_step])
@@ -273,7 +286,7 @@ def evaluate(hps):
 			#                 confusion_matrix_8x8[row, col]))
 			
 			np.savetxt(
-				"/Users/Pharrell_WANG/workspace/models/resnet/confusion_matrix"
+				"/Users/Pharrell_WANG/workspace/models/resnet/confusion_matrix/"
 				+ str(ckpt_state.model_checkpoint_path)[-10:] + ".csv",
 				confusion_matrix_8x8, fmt='%i',
 				delimiter=",")
@@ -383,9 +396,9 @@ def main(_):
 	# num_classes = 0
 	
 	if FLAGS.mode == 'train':
-		batch_size = 128
+		batch_size = FLAGS.train_batch_size
 	elif FLAGS.mode == 'eval':
-		batch_size = 100
+		batch_size = FLAGS.eval_batch_size
 	else:
 		raise ValueError('Only support two modes: train or eval')
 	
