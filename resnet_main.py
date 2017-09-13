@@ -105,11 +105,11 @@ def train(hps):
 					self._lrn_rate = 0.1
 				elif train_step < 20000:
 					self._lrn_rate = 0.01
-				elif train_step < 30000:
-					self._lrn_rate = 0.001
 				elif train_step < 40000:
+					self._lrn_rate = 0.001
+				elif train_step < 80000:
 					self._lrn_rate = 0.0001
-				elif train_step < 60000:
+				elif train_step < 100000:
 					self._lrn_rate = 0.00005
 				else:
 					self._lrn_rate = 0.00001
